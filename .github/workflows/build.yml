@@ -17,6 +17,7 @@ jobs:
         path: ${{ github.workspace}}/.arduino/downloads
         key: ${{ runner.os }}-arduino-downloads
     - run: make setup
+    - run: pip install --user adafruit-nrfutil
     - run: KALEIDOSCOPE_TEMP_PATH=${{ github.workspace}}/.kaleidoscope-temp make -j $(nproc) smoke-sketches
   run-simulator-tests:
     runs-on: ubuntu-latest
