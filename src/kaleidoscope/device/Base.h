@@ -41,6 +41,7 @@
 #include "kaleidoscope/driver/mcu/None.h"         // for None
 #include "kaleidoscope/driver/storage/Base.h"     // for BaseProps
 #include "kaleidoscope/driver/storage/None.h"     // for None
+#include "kaleidoscope/driver/ble/None.h"         // for None
 
 #ifndef CRGB
 #error cRGB and CRGB *must* be defined before including this header!
@@ -74,6 +75,7 @@ struct BaseProps {
   typedef kaleidoscope::driver::bootloader::None Bootloader;
   typedef kaleidoscope::driver::storage::BaseProps StorageProps;
   typedef kaleidoscope::driver::storage::None Storage;
+  typedef kaleidoscope::driver::ble::None BLE;
   static constexpr const char *short_name = USB_PRODUCT;
 };
 
@@ -123,6 +125,7 @@ class Base {
   typedef typename _DeviceProps::Bootloader Bootloader;
   typedef typename _DeviceProps::StorageProps StorageProps;
   typedef typename _DeviceProps::Storage Storage;
+  typedef typename _DeviceProps::BLE BLE;
 
   static constexpr uint8_t matrix_rows    = KeyScannerProps::matrix_rows;
   static constexpr uint8_t matrix_columns = KeyScannerProps::matrix_columns;
@@ -179,6 +182,13 @@ class Base {
    */
   LEDDriver &ledDriver() {
     return led_driver_;
+  }
+
+  /**
+   * Returns the BLE driver
+   */
+  BLE &ble() {
+    return ble_;
   }
 
   /**
@@ -430,6 +440,7 @@ class Base {
     storage_.setup();
     key_scanner_.setup();
     led_driver_.setup();
+    ble_.setup();
   }
 
   /**
@@ -457,6 +468,7 @@ class Base {
   MCU mcu_;
   Bootloader bootloader_;
   Storage storage_;
+  BLE ble_;
 };
 
 }  // namespace device
