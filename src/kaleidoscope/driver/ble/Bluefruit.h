@@ -117,6 +117,10 @@ class BLEBluefruit : public Base {
     BLEBluefruit::adv_started = false;
   }
 
+  bool connected() {
+    return Bluefruit.Periph.connected();
+  }
+
  private:
   static BLEDis bledis;
   static BLEBas blebas;

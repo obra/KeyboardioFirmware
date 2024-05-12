@@ -22,55 +22,68 @@
 
 #pragma once
 
-#include "base/AbsoluteMouse.h"  // for AbsoluteMouse, AbsoluteMouseProps
-#include "base/Keyboard.h"       // for Keyboard, KeyboardProps
-#include "base/Mouse.h"          // for Mouse, MouseProps
+#include "kaleidoscope/driver/hid/Base.h"
+#include "Bluefruit.h"
+#include "TinyUSB.h"
 
 namespace kaleidoscope {
 namespace driver {
 namespace hid {
 
-struct BaseProps {
-  typedef base::KeyboardProps KeyboardProps;
-  typedef base::Keyboard<KeyboardProps> Keyboard;
-  typedef base::MouseProps MouseProps;
-  typedef base::Mouse<MouseProps> Mouse;
-  typedef base::AbsoluteMouseProps AbsoluteMouseProps;
-  typedef base::AbsoluteMouse<AbsoluteMouseProps> AbsoluteMouse;
+struct HybridProps {
+  typedef TinyUSBProps USBProps;
+  typedef TinyUSB<TinyUSBProps> USB;
+  typedef BluefruitProps BLEProps;
+  typedef Bluefruit<BLEProps> BLE;
 };
 
 template<typename _Props>
-class Base {
+class Hybrid {
  private:
-  typename _Props::Keyboard keyboard_;
-  typename _Props::Mouse mouse_;
-  typename _Props::AbsoluteMouse absolute_mouse_;
+  typename _Props::USB hidusb;
+  typename _Props::BLE hidble;
+  uint8_t mode_;
 
  public:
-  Base() {}
+  Hybrid()
+    : mode_(MODE_USB) {}
 
   void setup() {
-    keyboard().setup();
+    hidusb.setup();
+    hidble.setup();
   }
 
   void onUSBReset() {
-    keyboard().onUSBReset();
+    hidusb.keyboard().onUSBReset();
   }
 
-  auto keyboard() -> decltype(keyboard_) & {
-    return keyboard_;
+  base::KeyboardItf &keyboard() {
+    if (mode_ == MODE_USB) {
+      return hidusb.keyboard();
+    } else {
+      return hidble.keyboard();
+    }
   }
 
-  auto mouse() -> decltype(mouse_) & {
-    return mouse_;
+  base::MouseItf &mouse() {
+    if (mode_ == MODE_USB) {
+      return hidusb.mouse();
+    } else {
+      return hidble.mouse();
+    }
   }
 
-  auto absoluteMouse() -> decltype(absolute_mouse_) & {
-    return absolute_mouse_;
+  base::AbsoluteMouseItf &absoluteMouse() {
+    if (mode_ == MODE_USB) {
+      return hidusb.absoluteMouse();
+    } else {
+      return hidble.absoluteMouse();
+    }
   }
 
   void setMode(uint8_t mode) {
-    (void)mode;
+    mode_ = mode;
+    LOG_LV2("HYBRID", "mode_=%d", mode_);
   }
 };
 

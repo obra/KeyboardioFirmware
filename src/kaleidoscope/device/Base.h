@@ -43,6 +43,12 @@
 #include "kaleidoscope/driver/storage/None.h"     // for None
 #include "kaleidoscope/driver/ble/None.h"         // for None
 
+// Connection mode for host HID and Serial
+enum HostMode {
+  MODE_USB = 1,
+  MODE_BLE = 2,
+};
+
 #ifndef CRGB
 #error cRGB and CRGB *must* be defined before including this header!
 #endif
@@ -77,6 +83,7 @@ struct BaseProps {
   typedef kaleidoscope::driver::storage::None Storage;
   typedef kaleidoscope::driver::ble::None BLE;
   static constexpr const char *short_name = USB_PRODUCT;
+  static constexpr const bool isHybrid    = false;
 };
 
 template<typename _DeviceProps>
@@ -109,7 +116,8 @@ class Base {
   NoOpSerial noop_serial_;
 
  public:
-  Base() {}
+  Base()
+    : mode_(MODE_USB) {}
 
   typedef _DeviceProps Props;
 
@@ -460,6 +468,51 @@ class Base {
     bootloader_.rebootBootloader();
   }
 
+  /**
+   * Return whether the device has a hybrid host connection
+   */
+  bool isHybrid() {
+    return _DeviceProps::isHybrid;
+  }
+
+  /**
+   * Set host connection mode
+   */
+  void setMode(uint8_t mode) {
+    if (!isHybrid()) {
+      return;
+    }
+    mode_ = mode;
+    hid_.setMode(mode);
+  }
+
+  /**
+   * Get current host connection mode
+   */
+  uint8_t getMode() {
+    return mode_;
+  }
+
+  /**
+   * Toggle host connection between USB and BLE
+   */
+  void toggleMode() {
+    if (mode_ == MODE_USB && ble_.connected()) {
+      setMode(MODE_BLE);
+#if CFG_DEBUG >= 2
+      LOG_LV2("DEVICE", "mode_=%d", mode_);
+#endif
+      return;
+    }
+    if (mode_ == MODE_BLE && mcu_.USBConfigured()) {
+      setMode(MODE_USB);
+#if CFG_DEBUG >= 2
+      LOG_LV2("DEVICE", "mode_=%d", mode_);
+#endif
+      return;
+    }
+  }
+
   /** @} */
 
  protected:
@@ -470,6 +523,7 @@ class Base {
   Bootloader bootloader_;
   Storage storage_;
   BLE ble_;
+  uint8_t mode_;
 };
 
 }  // namespace device

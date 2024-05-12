@@ -35,6 +35,9 @@ class Base {
   void startAdvLtd() {}
   void startAdvConn() {}
   void stopAdv() {}
+  bool connected() {
+    return false;
+  }
 };
 
 }  // namespace ble
