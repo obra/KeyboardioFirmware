@@ -1,6 +1,5 @@
 /* Kaleidoscope - Firmware for computer input devices
- * Copyright (C) 2024-2025 Keyboard.io, inc.
- *
+ * Copyright (C) 2013-2025 Keyboard.io, inc.
  *
  * This program is free software: you can redistribute it and/or modify it under
  * the terms of the GNU General Public License as published by the Free Software
@@ -21,20 +20,41 @@
  * this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "kaleidoscope/driver/ble/Bluefruit.h"  // for Base
+#pragma once
+
+#ifdef ARDUINO_ARCH_NRF52
+
+#include <bluefruit.h>
 
 namespace kaleidoscope {
 namespace driver {
-namespace ble {
+namespace hid {
+namespace bluefruit {
 
-#ifdef ARDUINO_ARCH_NRF52
-bool BLEBluefruit::adv_started = false;
-bool BLEBluefruit::bonded      = false;
-BLEDis BLEBluefruit::bledis;
-BLEBas BLEBluefruit::blebas;
-BLEUart BLEBluefruit::bleuart;
-#endif
+#define BLE_HID_BCD                       0x110
+#define BLE_HID_INFO_REMOTE_WAKE          0x01
+#define BLE_HID_INFO_NORMALLY_CONNECTABLE 0x02
 
-}  // namespace ble
+enum {
+  RID_KEYBOARD = 1,
+  RID_MOUSE,
+  RID_CONSUMER_CONTROL,
+  RID_SYSTEM_CONTROL,
+  RID_ABS_MOUSE,
+};
+
+class HIDD : public BLEHidGeneric {
+ public:
+  HIDD();
+  err_t begin();
+  void setLEDcb(BLECharacteristic::write_cb_t fp);
+};
+
+extern HIDD blehid;
+
+}  // namespace bluefruit
+}  // namespace hid
 }  // namespace driver
 }  // namespace kaleidoscope
+
+#endif /* ARDUINO_ARCH_NRF52 */

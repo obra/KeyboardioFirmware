@@ -28,6 +28,7 @@
 #include <bluefruit.h>
 
 #include "kaleidoscope/driver/ble/Base.h"  // for Base
+#include "kaleidoscope/driver/hid/bluefruit/HIDD.h"
 
 namespace kaleidoscope {
 namespace driver {
@@ -62,11 +63,6 @@ class BLEBluefruit : public Base {
     blebas.setPermission(SECMODE_ENC_NO_MITM, SECMODE_NO_ACCESS);
     blebas.begin();
     blebas.write(100);
-
-    // Move this to HID driver later
-    // flags 0x03 = NormallyConnectable|RemoteWake
-    blehid.setHidInfo(0x110, 0, 0x03);
-    blehid.begin();
 
     // Require encryption for UART
     bleuart.setPermission(SECMODE_ENC_NO_MITM, SECMODE_ENC_NO_MITM);
@@ -125,8 +121,6 @@ class BLEBluefruit : public Base {
   static BLEDis bledis;
   static BLEBas blebas;
   static BLEUart bleuart;
-  // Move this to HID driver later
-  static BLEHidAdafruit blehid;
 
   static bool adv_started;
   static bool bonded;
@@ -135,7 +129,7 @@ class BLEBluefruit : public Base {
   static void advCommon() {
     Bluefruit.Advertising.addTxPower();
     Bluefruit.Advertising.addAppearance(BLE_APPEARANCE_HID_KEYBOARD);
-    Bluefruit.Advertising.addService(blehid);
+    Bluefruit.Advertising.addService(hid::bluefruit::blehid);
     Bluefruit.Advertising.addName();
     Bluefruit.ScanResponse.addService(bleuart);
   }

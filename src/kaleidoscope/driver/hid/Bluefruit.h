@@ -1,6 +1,5 @@
 /* Kaleidoscope - Firmware for computer input devices
- * Copyright (C) 2024-2025 Keyboard.io, inc.
- *
+ * Copyright (C) 2013-2025 Keyboard.io, inc.
  *
  * This program is free software: you can redistribute it and/or modify it under
  * the terms of the GNU General Public License as published by the Free Software
@@ -21,20 +20,33 @@
  * this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "kaleidoscope/driver/ble/Bluefruit.h"  // for Base
+#pragma once
+
+#include "kaleidoscope/driver/hid/Base.h"  // for Base, BaseProps
+#include "kaleidoscope/driver/hid/bluefruit/AbsoluteMouse.h"
+#include "kaleidoscope/driver/hid/bluefruit/Keyboard.h"
+#include "kaleidoscope/driver/hid/bluefruit/Mouse.h"
+
+#ifdef ARDUINO_ARCH_NRF52
 
 namespace kaleidoscope {
 namespace driver {
-namespace ble {
+namespace hid {
 
-#ifdef ARDUINO_ARCH_NRF52
-bool BLEBluefruit::adv_started = false;
-bool BLEBluefruit::bonded      = false;
-BLEDis BLEBluefruit::bledis;
-BLEBas BLEBluefruit::blebas;
-BLEUart BLEBluefruit::bleuart;
-#endif
+struct BluefruitProps : public BaseProps {
+  typedef bluefruit::KeyboardProps KeyboardProps;
+  typedef bluefruit::Keyboard<KeyboardProps> Keyboard;
+  typedef bluefruit::MouseProps MouseProps;
+  typedef bluefruit::Mouse<MouseProps> Mouse;
+  typedef bluefruit::AbsoluteMouseProps AbsoluteMouseProps;
+  typedef bluefruit::AbsoluteMouse<AbsoluteMouseProps> AbsoluteMouse;
+};
 
-}  // namespace ble
+template<typename _Props>
+class Bluefruit : public Base<_Props> {};
+
+}  // namespace hid
 }  // namespace driver
 }  // namespace kaleidoscope
+
+#endif /* ARDUINO_ARCH_NRF52 */

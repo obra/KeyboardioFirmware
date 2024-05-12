@@ -436,11 +436,12 @@ class Base {
   void setup() {
     bootloader_.setup();
     mcu_.setup();
+    // BLE has to come before HID, because SoftDevice needs initialization
+    ble_.setup();
     hid_.setup();
     storage_.setup();
     key_scanner_.setup();
     led_driver_.setup();
-    ble_.setup();
   }
 
   /**
