@@ -117,7 +117,7 @@ class Base {
 
  public:
   Base()
-    : mode_(MODE_USB) {}
+    : mode_(MODE_USB), primary_mode_(MODE_USB) {}
 
   typedef _DeviceProps Props;
 
@@ -494,23 +494,52 @@ class Base {
   }
 
   /**
-   * Toggle host connection between USB and BLE
+   * Toggle host connection priority between USB and BLE
    */
   void toggleMode() {
-    if (mode_ == MODE_USB && ble_.connected()) {
-      setMode(MODE_BLE);
+    uint8_t oldmode = primary_mode_;
+    if (!isHybrid()) {
+      return;
+    }
+    if (oldmode == MODE_USB) {
+      primary_mode_ = MODE_BLE;
+    } else {
+      primary_mode_ = MODE_USB;
+    }
 #if CFG_DEBUG >= 2
-      LOG_LV2("DEVICE", "mode_=%d", mode_);
+    LOG_LV2("DEVICE", "primary_mode_=%d", primary_mode_);
 #endif
+  }
+
+  /**
+   * Automatically switch modes if hybrid
+   *
+   * Runtime calls this as part of the main loop.
+   */
+  void autoMode() {
+    uint8_t oldmode = mode_;
+    if (!isHybrid()) {
       return;
     }
     if (mode_ == MODE_BLE && mcu_.USBConfigured()) {
-      setMode(MODE_USB);
-#if CFG_DEBUG >= 2
-      LOG_LV2("DEVICE", "mode_=%d", mode_);
-#endif
-      return;
+      if (!ble_.connected() || primary_mode_ == MODE_USB) {
+        setMode(MODE_USB);
+      }
+    } else if (mode_ == MODE_USB && ble_.connected()) {
+      /*
+       * If we have a HID event initiate BLE connectable advertising, this
+       * should maybe change to always switch to BLE if USB is unconfigured,
+       * even if BLE is currently disconnected.
+       */
+      if (!mcu_.USBConfigured() || primary_mode_ == MODE_BLE) {
+        setMode(MODE_BLE);
+      }
     }
+#if CFG_DEBUG >= 2
+    if (oldmode != mode_) {
+      LOG_LV2("DEVICE", "autoMode: %d", mode_);
+    }
+#endif
   }
 
   /** @} */
@@ -524,6 +553,7 @@ class Base {
   Storage storage_;
   BLE ble_;
   uint8_t mode_;
+  uint8_t primary_mode_;
 };
 
 }  // namespace device
