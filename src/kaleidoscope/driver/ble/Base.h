@@ -23,6 +23,8 @@
 
 #pragma once
 
+#include <Arduino.h>
+
 namespace kaleidoscope {
 namespace driver {
 namespace ble {
@@ -38,6 +40,27 @@ class Base {
   bool connected() {
     return false;
   }
+  Stream &serialPort() {
+    return noserial_;
+  }
+
+ private:
+  class NoSerial : public Stream {
+    int available() {
+      return 0;
+    }
+    int read() {
+      return 0;
+    }
+    int peek() {
+      return 0;
+    }
+    size_t write(uint8_t) {
+      return 0;
+    }
+    void flush() {}
+  };
+  NoSerial noserial_;
 };
 
 }  // namespace ble

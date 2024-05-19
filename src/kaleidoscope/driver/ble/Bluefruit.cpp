@@ -32,7 +32,7 @@ bool BLEBluefruit::adv_started = false;
 bool BLEBluefruit::bonded      = false;
 BLEDis BLEBluefruit::bledis;
 BLEBas BLEBluefruit::blebas;
-BLEUart BLEBluefruit::bleuart;
+BLEUartWrapper BLEBluefruit::bleuart;
 #endif
 
 }  // namespace ble

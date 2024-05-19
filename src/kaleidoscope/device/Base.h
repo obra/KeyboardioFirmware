@@ -537,6 +537,16 @@ class Base {
 #endif
   }
 
+  /**
+   * Initialize the serial port
+   *
+   * The hybrid drivers need to use the only common base class of serial
+   * devices, which is Stream. The begin() method to initialize the (emulated)
+   * speed of the serial device isn't present in Stream, so each device
+   * driver needs to do this in initSerial() instead.
+   */
+  void initSerial() {}
+
   /** @} */
 
  protected:

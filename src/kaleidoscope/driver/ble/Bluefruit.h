@@ -34,6 +34,18 @@ namespace kaleidoscope {
 namespace driver {
 namespace ble {
 
+class BLEUartWrapper : public BLEUart {
+ public:
+  void flush() {
+    /*
+     * Override, because BLEUart uses flush() for RX and flushTXD() for TX
+     * Don't actually call it, because it causes a reboot (hard fault?),
+     * and we're not using its TX FIFO anyway.
+     */
+    // flushTXD();
+  }
+};
+
 class BLEBluefruit : public Base {
  public:
   BLEBluefruit() {}
@@ -121,10 +133,14 @@ class BLEBluefruit : public Base {
     return Bluefruit.Periph.connected();
   }
 
+  Stream &serialPort() {
+    return bleuart;
+  }
+
  private:
   static BLEDis bledis;
   static BLEBas blebas;
-  static BLEUart bleuart;
+  static BLEUartWrapper bleuart;
 
   static bool adv_started;
   static bool bonded;

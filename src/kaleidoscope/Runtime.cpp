@@ -59,7 +59,7 @@ void Runtime_::setup(void) {
   //
   // TODO(anyone): Figure out a way we can get rid of this, and fix the bug
   // properly.
-  device().serialPort().begin(9600);
+  device().initSerial();
 
   kaleidoscope::sketch_exploration::pluginsExploreSketch();
   kaleidoscope::Hooks::onSetup();
