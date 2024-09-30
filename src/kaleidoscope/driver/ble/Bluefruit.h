@@ -50,13 +50,13 @@ class BLEBluefruit : public Base {
     Bluefruit.Security.setSecuredCallback(BLEBluefruit::secured_cb);
 
     Bluefruit.setAppearance(BLE_APPEARANCE_HID_KEYBOARD);
-    Bluefruit.setName("Kaleidoscope");
+    Bluefruit.setName(USB_PRODUCT);
 
     // HOGP spec requires Device Information and Battery Services
     // to have the same Security Level as HID
     bledis.setPermission(SECMODE_ENC_NO_MITM, SECMODE_NO_ACCESS);
-    bledis.setManufacturer("Keyboard.io, Inc");
-    bledis.setModel("Kaleidoscope");
+    bledis.setManufacturer(USB_MANUFACTURER);
+    bledis.setModel(USB_PRODUCT);
     bledis.begin();
 
     blebas.setPermission(SECMODE_ENC_NO_MITM, SECMODE_NO_ACCESS);
