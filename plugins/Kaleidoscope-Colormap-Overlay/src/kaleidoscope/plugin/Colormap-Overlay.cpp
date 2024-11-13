@@ -31,6 +31,7 @@ namespace plugin {
 uint16_t ColormapOverlay::map_base_;
 
 void ColormapOverlay::setup() {
+  // TODO: check if a call to ::LEDPaletteTheme.reserveThemes() is actually needed
   map_base_ = ::LEDPaletteTheme.reserveThemes(1);
 }
 
@@ -76,6 +77,31 @@ EventHandlerResult ColormapOverlay::beforeSyncingLeds() {
   setLEDOverlayColors();
 
   return EventHandlerResult::OK;
+}
+
+EventHandlerResult ColormapOverlay::onFocusEvent(const char *input) {
+  if (!Runtime.has_leds)
+    return EventHandlerResult::OK;
+
+  const char *cmd = PSTR("colormap.overlay");
+
+  if (::Focus.inputMatchesHelp(input))
+    return ::Focus.printHelp(cmd);
+
+  if (!::Focus.inputMatchesCommand(input, cmd))
+    return EventHandlerResult::OK;
+
+  if (::Focus.isEOL()) {
+    // TODO: loop over all layers and keys, check if a color overlay is specified and return either overlay index or -1
+    return EventHandlerResult::EVENT_CONSUMED;
+  }
+
+  // TODO: loop over all layers and keys, for each read specified index and when it's >=0 store overlay in EEPROM
+  Runtime.storage().commit();
+
+  ::LEDControl.refreshAll();
+
+  return EventHandlerResult::EVENT_CONSUMED;
 }
 
 }  // namespace plugin
