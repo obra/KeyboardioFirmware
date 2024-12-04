@@ -42,11 +42,11 @@ class Hybrid {
  private:
   typename _Props::USB hidusb;
   typename _Props::BLE hidble;
-  uint8_t mode_;
+  uint8_t host_connection_mode_;
 
  public:
   Hybrid()
-    : mode_(MODE_USB) {}
+    : host_connection_mode_(MODE_USB) {}
 
   void setup() {
     hidusb.setup();
@@ -58,7 +58,7 @@ class Hybrid {
   }
 
   base::KeyboardItf &keyboard() {
-    if (mode_ == MODE_USB) {
+    if (host_connection_mode_ == MODE_USB) {
       return hidusb.keyboard();
     } else {
       return hidble.keyboard();
@@ -66,7 +66,7 @@ class Hybrid {
   }
 
   base::MouseItf &mouse() {
-    if (mode_ == MODE_USB) {
+    if (host_connection_mode_ == MODE_USB) {
       return hidusb.mouse();
     } else {
       return hidble.mouse();
@@ -74,16 +74,16 @@ class Hybrid {
   }
 
   base::AbsoluteMouseItf &absoluteMouse() {
-    if (mode_ == MODE_USB) {
+    if (host_connection_mode_ == MODE_USB) {
       return hidusb.absoluteMouse();
     } else {
       return hidble.absoluteMouse();
     }
   }
 
-  void setMode(uint8_t mode) {
-    mode_ = mode;
-    LOG_LV2("HYBRID", "mode_=%d", mode_);
+  void setHostConnectionMode(uint8_t mode) {
+    host_connection_mode_ = mode;
+    LOG_LV2("HYBRID", "host_connection_mode_=%d", host_connection_mode_);
   }
 };
 

@@ -69,7 +69,7 @@ class Base {
     return absolute_mouse_;
   }
 
-  void setMode(uint8_t mode) {
+  void setHostConnectionMode(uint8_t mode) {
     (void)mode;
   }
 };

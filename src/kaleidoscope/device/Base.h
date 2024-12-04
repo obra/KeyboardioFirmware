@@ -44,7 +44,7 @@
 #include "kaleidoscope/driver/ble/None.h"         // for None
 
 // Connection mode for host HID and Serial
-enum HostMode {
+enum HostConnectionMode {
   MODE_USB = 1,
   MODE_BLE = 2,
 };
@@ -83,7 +83,7 @@ struct BaseProps {
   typedef kaleidoscope::driver::storage::None Storage;
   typedef kaleidoscope::driver::ble::None BLE;
   static constexpr const char *short_name = USB_PRODUCT;
-  static constexpr const bool isHybrid    = false;
+  static constexpr const bool isHybridHostConnection    = false;
 };
 
 template<typename _DeviceProps>
@@ -117,7 +117,7 @@ class Base {
 
  public:
   Base()
-    : mode_(MODE_USB), primary_mode_(MODE_USB) {}
+    : host_connection_mode_(MODE_USB), primary_host_connection_mode_(MODE_USB) {}
 
   typedef _DeviceProps Props;
 
@@ -471,43 +471,43 @@ class Base {
   /**
    * Return whether the device has a hybrid host connection
    */
-  bool isHybrid() {
-    return _DeviceProps::isHybrid;
+  bool isHybridHostConnection() {
+    return _DeviceProps::isHybridHostConnection;
   }
 
   /**
    * Set host connection mode
    */
-  void setMode(uint8_t mode) {
-    if (!isHybrid()) {
+  void setHostConnectionMode(uint8_t mode) {
+    if (!isHybridHostConnection()) {
       return;
     }
-    mode_ = mode;
-    hid_.setMode(mode);
+    host_connection_mode_ = mode;
+    hid_.setHostConnectionMode(mode);
   }
 
   /**
    * Get current host connection mode
    */
-  uint8_t getMode() {
-    return mode_;
+  uint8_t getHostConnectionMode() {
+    return host_connection_mode_;
   }
 
   /**
    * Toggle host connection priority between USB and BLE
    */
-  void toggleMode() {
-    uint8_t oldmode = primary_mode_;
-    if (!isHybrid()) {
+  void toggleHostConnectionMode() {
+    uint8_t old_mode = primary_host_connection_mode_;
+    if (!isHybridHostConnection()) {
       return;
     }
-    if (oldmode == MODE_USB) {
-      primary_mode_ = MODE_BLE;
+    if (old_mode == MODE_USB) {
+      primary_host_connection_mode_ = MODE_BLE;
     } else {
-      primary_mode_ = MODE_USB;
+      primary_host_connection_mode_ = MODE_USB;
     }
 #if CFG_DEBUG >= 2
-    LOG_LV2("DEVICE", "primary_mode_=%d", primary_mode_);
+    LOG_LV2("DEVICE", "primary_host_connection_mode_=%d", primary_host_connection_mode_);
 #endif
   }
 
@@ -516,28 +516,23 @@ class Base {
    *
    * Runtime calls this as part of the main loop.
    */
-  void autoMode() {
-    uint8_t oldmode = mode_;
-    if (!isHybrid()) {
+  void autoHostConnectionMode() {
+    uint8_t old_mode = host_connection_mode_;
+    if (!isHybridHostConnection()) {
       return;
     }
-    if (mode_ == MODE_BLE && mcu_.USBConfigured()) {
-      if (!ble_.connected() || primary_mode_ == MODE_USB) {
-        setMode(MODE_USB);
+    if (host_connection_mode_ == MODE_BLE && mcu_.USBConfigured()) {
+      if (!ble_.connected() || primary_host_connection_mode_ == MODE_USB) {
+        setHostConnectionMode(MODE_USB);
       }
-    } else if (mode_ == MODE_USB && ble_.connected()) {
-      /*
-       * If we have a HID event initiate BLE connectable advertising, this
-       * should maybe change to always switch to BLE if USB is unconfigured,
-       * even if BLE is currently disconnected.
-       */
-      if (!mcu_.USBConfigured() || primary_mode_ == MODE_BLE) {
-        setMode(MODE_BLE);
+    } else if (host_connection_mode_ == MODE_USB && ble_.connected()) {
+      if (!mcu_.USBConfigured() || primary_host_connection_mode_ == MODE_BLE) {
+        setHostConnectionMode(MODE_BLE);
       }
     }
 #if CFG_DEBUG >= 2
-    if (oldmode != mode_) {
-      LOG_LV2("DEVICE", "autoMode: %d", mode_);
+    if (old_mode != host_connection_mode_) {
+      LOG_LV2("DEVICE", "autoHostConnectionMode: %d", host_connection_mode_);
     }
 #endif
   }
@@ -552,8 +547,8 @@ class Base {
   Bootloader bootloader_;
   Storage storage_;
   BLE ble_;
-  uint8_t mode_;
-  uint8_t primary_mode_;
+  uint8_t host_connection_mode_;
+  uint8_t primary_host_connection_mode_;
 };
 
 }  // namespace device

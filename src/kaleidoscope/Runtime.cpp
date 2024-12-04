@@ -77,7 +77,7 @@ void Runtime_::loop(void) {
   if (device().pollUSBReset()) {
     device().hid().onUSBReset();
   }
-  device().autoMode();
+  device().autoHostConnectionMode();
   kaleidoscope::Hooks::beforeEachCycle();
 
   // Next, we scan the keyswitches. Any toggle-on or toggle-off events will
