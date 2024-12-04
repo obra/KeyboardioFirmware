@@ -22,6 +22,7 @@
 
 // clang-format off
 
+#include "kaleidoscope/host_connection_status.h"
 #pragma once
 
 // This file defines the names and argument signatures for all event handlers
@@ -300,7 +301,7 @@ class SignatureCheckDummy {};
              _CURRENT_IMPLEMENTATION,                                    __NL__ \
              _NOT_ABORTABLE,                                            __NL__ \
              (),(),(), /* non template */                               __NL__ \
-             (uint8_t device_id, kaleidoscope::SignatureCheckDummy status),          __NL__ \
+             (uint8_t device_id, kaleidoscope::HostConnectionStatus status),          __NL__ \
              (device_id, status), ##__VA_ARGS__)
 
 // The following function macro lists event handler/hook method names and
