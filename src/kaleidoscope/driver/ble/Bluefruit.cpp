@@ -21,20 +21,24 @@
  * this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
+#ifdef ARDUINO_ARCH_NRF52
+
 #include "kaleidoscope/driver/ble/Bluefruit.h"  // for Base
+
 
 namespace kaleidoscope {
 namespace driver {
 namespace ble {
 
-#ifdef ARDUINO_ARCH_NRF52
-bool BLEBluefruit::adv_started = false;
-bool BLEBluefruit::bonded      = false;
+uint8_t BLEBluefruit::current_device_id = 0;
+ble_gap_addr_t BLEBluefruit::base_addr;
+
 BLEDis BLEBluefruit::bledis;
 BLEBas BLEBluefruit::blebas;
 BLEUartWrapper BLEBluefruit::bleuart;
-#endif
 
 }  // namespace ble
 }  // namespace driver
 }  // namespace kaleidoscope
+
+#endif
