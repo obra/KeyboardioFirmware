@@ -151,7 +151,7 @@ KEYMAPS(
        ___, ___, ___,            ___,             ___,
     M(MACRO_BT_OFF),M(MACRO_BT_SELECT_1),M(MACRO_BT_SELECT_2),M(MACRO_BT_SELECT_3),M(MACRO_BT_SELECT_4), M(MACRO_BT_PAIR),             ___,             ___,             ___,                        ___,            ___, ___,
     Key_LEDEffectNext,___,           Consumer_VolumeIncrement,___,            ___,             ___,             ___,             ___,             ___,                        ___,             ___,             ___,
-    ___,            Consumer_ScanNextTrack,Consumer_VolumeDecrement,Consumer_ScanPreviousTrack,___,             ___,             ___,             ___,             ___,                        ___,             ___,             ___,
+    ___,            Consumer_ScanPreviousTrack,Consumer_VolumeDecrement,Consumer_ScanNextTrack,___,             ___,             ___,             ___,             ___,                        ___,             ___,             ___,
     Key_ToggleKeyclick,___,             Consumer_Mute,   ___,                    ___,             ___,             ___,             ___,             ___,                        ___,             ___,             ___,
     ___,            ___,             ___,             ___,                    ___,             ___,             ___,             ___,             ___,                        ___,             ___,              ___
   )
