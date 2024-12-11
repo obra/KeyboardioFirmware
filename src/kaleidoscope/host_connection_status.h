@@ -1,6 +1,5 @@
 /* Kaleidoscope - Firmware for computer input devices
- * Copyright (C) 2024-2025 Keyboard.io, inc.
- *
+ * Copyright (C) 2013-2025 Keyboard.io, inc.
  *
  * This program is free software: you can redistribute it and/or modify it under
  * the terms of the GNU General Public License as published by the Free Software
@@ -21,26 +20,18 @@
  * this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifdef ARDUINO_ARCH_NRF52
-
-#include "kaleidoscope/driver/ble/Bluefruit.h"  // for Base
-#include "kaleidoscope/Runtime.h"
-#include "kaleidoscope/hooks.h"
-#include "kaleidoscope/host_connection_status.h"
+#pragma once
 
 namespace kaleidoscope {
-namespace driver {
-namespace ble {
 
-uint8_t BLEBluefruit::current_device_id = 0;
-ble_gap_addr_t BLEBluefruit::base_addr;
+enum class HostConnectionStatus {
+  Disconnected,    // Not connected to any host
+  Advertising,     // Currently advertising
+  DeviceSelected,  // Device has been selected
+  Connecting,      // In the process of connecting (including pairing)
+  Connected,       // Successfully connected and ready
+  PairingFailed,   // Failed to pair with host
+  PairingSuccess   // Successfully paired with host
+};
 
-BLEDis BLEBluefruit::bledis;
-BLEBas BLEBluefruit::blebas;
-BLEUartWrapper BLEBluefruit::bleuart;
-
-}  // namespace ble
-}  // namespace driver
 }  // namespace kaleidoscope
-
-#endif

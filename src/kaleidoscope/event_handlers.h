@@ -292,7 +292,16 @@ class SignatureCheckDummy {};
                (,_Sketch),                                                __NL__ \
                (,kaleidoscope::SignatureCheckDummy),                      __NL__ \
                (),                                                        __NL__ \
-               (),##__VA_ARGS__)
+               (),##__VA_ARGS__)                                          __NL__ \
+                                                                          __NL__ \
+   /* Called when a host's connection status changes */                   __NL__ \
+   OPERATION(onHostConnectionStatusChanged,                              __NL__ \
+             1,                                                          __NL__ \
+             _CURRENT_IMPLEMENTATION,                                    __NL__ \
+             _NOT_ABORTABLE,                                            __NL__ \
+             (),(),(), /* non template */                               __NL__ \
+             (uint8_t device_id, kaleidoscope::SignatureCheckDummy status),          __NL__ \
+             (device_id, status), ##__VA_ARGS__)
 
 // The following function macro lists event handler/hook method names and
 // available versions. It is used to auto-generate code that is
@@ -372,4 +381,8 @@ class SignatureCheckDummy {};
                                                                         __NL__ \
    START(exploreSketch, 1)                                              __NL__ \
       OP(exploreSketch, 1)                                              __NL__ \
-   END(exploreSketch, 1)
+   END(exploreSketch, 1)                                                __NL__ \
+                                                                        __NL__ \
+   START(onHostConnectionStatusChanged, 1)                               __NL__ \
+      OP(onHostConnectionStatusChanged, 1)                               __NL__ \
+   END(onHostConnectionStatusChanged, 1)                                 
