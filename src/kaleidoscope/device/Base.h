@@ -43,6 +43,10 @@
 #include "kaleidoscope/driver/storage/None.h"     // for None
 #include "kaleidoscope/driver/ble/None.h"         // for None
 
+#include "kaleidoscope/driver/speaker/Base.h"  // for BaseProps
+#include "kaleidoscope/driver/speaker/None.h"  // for None
+
+
 // Connection mode for host HID and Serial
 enum HostConnectionMode {
   MODE_USB = 1,
@@ -82,8 +86,10 @@ struct BaseProps {
   typedef kaleidoscope::driver::storage::BaseProps StorageProps;
   typedef kaleidoscope::driver::storage::None Storage;
   typedef kaleidoscope::driver::ble::None BLE;
-  static constexpr const char *short_name = USB_PRODUCT;
-  static constexpr const bool isHybridHostConnection    = false;
+  typedef kaleidoscope::driver::speaker::BaseProps SpeakerProps;
+  typedef kaleidoscope::driver::speaker::None Speaker;
+  static constexpr const char *short_name            = USB_PRODUCT;
+  static constexpr const bool isHybridHostConnection = false;
 };
 
 template<typename _DeviceProps>
@@ -134,6 +140,8 @@ class Base {
   typedef typename _DeviceProps::StorageProps StorageProps;
   typedef typename _DeviceProps::Storage Storage;
   typedef typename _DeviceProps::BLE BLE;
+  typedef typename _DeviceProps::SpeakerProps SpeakerProps;
+  typedef typename _DeviceProps::Speaker Speaker;
 
   static constexpr uint8_t matrix_rows    = KeyScannerProps::matrix_rows;
   static constexpr uint8_t matrix_columns = KeyScannerProps::matrix_columns;
@@ -197,6 +205,14 @@ class Base {
    */
   BLE &ble() {
     return ble_;
+  }
+
+
+  /**
+   * Returns the speaker driver
+   */
+  Speaker &speaker() {
+    return speaker_;
   }
 
   /**
@@ -450,6 +466,7 @@ class Base {
     storage_.setup();
     key_scanner_.setup();
     led_driver_.setup();
+    speaker_.setup();
   }
 
   /**
@@ -554,6 +571,19 @@ class Base {
 
   /** @} */
 
+  /**
+   * Update the speaker state and play any queued notes
+   *
+   * This method should be called once per cycle to
+   * manage the non-blocking playback of melodies and tones. It handles
+   * the timing and sequencing of notes in a melody, ensuring smooth
+   * playback without blocking the main loop.
+   *
+   */
+  void updateSpeaker() {
+    speaker_.update();
+  }
+
  protected:
   HID hid_;
   KeyScanner key_scanner_;
@@ -564,6 +594,7 @@ class Base {
   BLE ble_;
   uint8_t host_connection_mode_;
   uint8_t primary_host_connection_mode_;
+  Speaker speaker_;
 };
 
 }  // namespace device

@@ -89,6 +89,7 @@ void Runtime_::loop(void) {
   // event is being handled at a time.
   device().scanMatrix();
 
+
   kaleidoscope::Hooks::afterEachCycle();
 
   // Let the device handle power management between cycles
