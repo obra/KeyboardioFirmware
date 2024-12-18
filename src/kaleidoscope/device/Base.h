@@ -547,6 +547,11 @@ class Base {
    */
   void initSerial() {}
 
+  /**
+   * Called between processing cycles, can be used for power management
+   */
+  void betweenCycles() {}
+
   /** @} */
 
  protected:

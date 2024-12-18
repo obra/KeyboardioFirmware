@@ -90,6 +90,9 @@ void Runtime_::loop(void) {
   device().scanMatrix();
 
   kaleidoscope::Hooks::afterEachCycle();
+
+  // Let the device handle power management between cycles
+  device().betweenCycles();
 }
 
 // ----------------------------------------------------------------------------
