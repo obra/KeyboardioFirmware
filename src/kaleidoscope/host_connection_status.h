@@ -25,13 +25,14 @@
 namespace kaleidoscope {
 
 enum class HostConnectionStatus {
-  Disconnected,    // Not connected to any host
-  Advertising,     // Currently advertising
-  DeviceSelected,  // Device has been selected
-  Connecting,      // In the process of connecting (including pairing)
-  Connected,       // Successfully connected and ready
-  PairingFailed,   // Failed to pair with host
-  PairingSuccess   // Successfully paired with host
+  Disconnected,      // Not connected to any host
+  Advertising,       // Currently advertising
+  DeviceSelected,    // Device has been selected
+  DeviceUnselected,  // Device has been unselected
+  Connecting,        // In the process of connecting (including pairing)
+  Connected,         // Successfully connected and ready
+  PairingFailed,     // Failed to pair with host
+  PairingSuccess     // Successfully paired with host
 };
 
 }  // namespace kaleidoscope

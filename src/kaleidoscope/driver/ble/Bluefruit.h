@@ -39,7 +39,7 @@ class Hooks;  // Forward declaration
 
 // Add these near the top of the file, after the includes
 #ifndef DEBUG_BLE
-#define DEBUG_BLE 1  // Set to 1 to enable debugging output
+#define DEBUG_BLE 0 // Set to 1 to enable debugging output
 #endif
 
 #if DEBUG_BLE
@@ -70,12 +70,14 @@ void print_args(T first, Args... args) {
     Serial.print(F("[BLE] "));                                 \
     kaleidoscope::driver::ble::debug::print_args(__VA_ARGS__); \
     Serial.println();                                          \
+    Serial.flush();                                            \
   } while (0)
 
 #define DEBUG_BLE_PRINT(...)                                   \
   do {                                                         \
     Serial.print(F("[BLE] "));                                 \
     kaleidoscope::driver::ble::debug::print_args(__VA_ARGS__); \
+    Serial.flush();                                            \
   } while (0)
 #else
 #define DEBUG_BLE_MSG(...)
@@ -104,13 +106,19 @@ class BLEBluefruit : public Base {
 
   void setup();
 
-  static void startAdvLtd();
-  static void stopAdv();
+  static void startDiscoverableAdvertising();
   bool connected();
   Stream &serialPort();
   void setBatteryLevel(uint8_t level);
   static void selectDevice(uint8_t device_id);
   static void stopAdvertising();
+  static void disconnect();
+
+  // Connection parameter constants for keyboard optimization
+  static constexpr uint16_t CONN_INTERVAL_MIN_MS = 12;   
+  static constexpr uint16_t CONN_INTERVAL_MAX_MS = 24;   
+  static constexpr uint16_t SLAVE_LATENCY = 0;           
+  static constexpr uint16_t SUPERVISION_TIMEOUT_MS = 400; 
 
  private:
   static constexpr uint8_t SECURITY_MODE_ENCRYPTED = 1;
@@ -122,18 +130,19 @@ class BLEBluefruit : public Base {
   static BLEBas blebas;
   static BLEUartWrapper bleuart;
 
-  static void stopAdv_cb();
+  static void stop_advertising_cb();
   static void connect_cb(uint16_t conn_handle);
   static void secured_cb(uint16_t conn_handle);
   static void pairing_complete_cb(uint16_t conn_handle, uint8_t auth_status);
   static void disconnect_cb(uint16_t conn_handle, uint8_t reason);
 
-  static void startDirectedAdv();
+  static void startConnectableAdvertising();
   static void printBLEAddress(const char *prefix, const uint8_t *addr);
-  static void advCommon();
+  static void configureAdvertising();
   static ble_gap_addr_t base_addr;
   static uint8_t current_device_id;
   static void setSlotSpecificAddress(uint8_t slot_id);
+  static void unbond();
   static void disconnectAndUnbond();
 };
 

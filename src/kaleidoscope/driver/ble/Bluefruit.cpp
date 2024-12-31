@@ -42,13 +42,30 @@ BLEUartWrapper BLEBluefruit::bleuart;
 
 void BLEBluefruit::setup() {
 
-  Bluefruit.configPrphBandwidth(BANDWIDTH_MAX);
+  Bluefruit.configPrphBandwidth(BANDWIDTH_LOW);
   if (!Bluefruit.begin()) {
     DEBUG_BLE_MSG("Failed to initialize Bluefruit");
     return;
   }
 
-  Bluefruit.setTxPower(4);
+  // Configure connection parameters for low latency using constants from header
+  Bluefruit.Periph.setConnInterval(CONN_INTERVAL_MIN_MS, CONN_INTERVAL_MAX_MS);
+  Bluefruit.Periph.setConnSlaveLatency(SLAVE_LATENCY);
+  Bluefruit.Periph.setConnSupervisionTimeout(SUPERVISION_TIMEOUT_MS);
+
+  // Enable DC/DC regulator for better power efficiency
+  sd_power_dcdc_mode_set(NRF_POWER_DCDC_ENABLE);
+
+  // Configure low power mode - keeping CONSTLAT for now
+  sd_power_mode_set(NRF_POWER_MODE_CONSTLAT);
+
+  // Set lower TX power - still good for 10m range
+  Bluefruit.setTxPower(-8);
+
+  // Disable Bluefruit's built in LED support since it's designed for a single-color LED, not our RGB LEDs.
+  // TODO(anybody): make this configurable down the line.
+  Bluefruit.autoConnLed(false);
+  Bluefruit.setConnLedInterval(0);
 
   Bluefruit.Periph.setConnectCallback(BLEBluefruit::connect_cb);
   Bluefruit.Periph.setDisconnectCallback(BLEBluefruit::disconnect_cb);
@@ -79,13 +96,13 @@ void BLEBluefruit::setup() {
     DEBUG_BLE_MSG("Failed to start UART Service");
   }
 
-  Bluefruit.Advertising.setStopCallback(stopAdv_cb);
+  Bluefruit.Advertising.setStopCallback(stop_advertising_cb);
 
   // Cache the device's base address during setup
   sd_ble_gap_addr_get(&base_addr);
 }
 
-void BLEBluefruit::startAdvLtd() {
+void BLEBluefruit::startDiscoverableAdvertising() {
   DEBUG_BLE_MSG("Starting limited discoverable advertising");
   if (current_device_id == 0) {
     DEBUG_BLE_MSG("ERROR: No device slot selected");
@@ -96,25 +113,16 @@ void BLEBluefruit::startAdvLtd() {
   if (Bluefruit.Periph.connected()) {
     DEBUG_BLE_MSG("Already connected.");
     if (Bluefruit.connected()) {
+      DEBUG_BLE_MSG("Disconnecting current connection and removing bond to peer address so we can connect a new device to this slot");
       disconnectAndUnbond();
     }
   }
 
-  // Stop any existing advertising first
-  if (Bluefruit.Advertising.isRunning()) {
-    DEBUG_BLE_MSG("Stopping current advertising");
-    Bluefruit.Advertising.stop();
-    delay(100);  // Give the softdevice time to clean up
-  }
-
-  // Reset advertising state
-  Bluefruit.Advertising.setType(BLE_GAP_ADV_TYPE_CONNECTABLE_SCANNABLE_UNDIRECTED);
-  Bluefruit.Advertising.clearData();
-  Bluefruit.ScanResponse.clearData();
+  stopAdvertising();
+  configureAdvertising();
 
   DEBUG_BLE_MSG("Setting up new advertising data...");
   Bluefruit.Advertising.addFlags(BLE_GAP_ADV_FLAGS_LE_ONLY_GENERAL_DISC_MODE);
-  advCommon();
   Hooks::onHostConnectionStatusChanged(current_device_id, kaleidoscope::HostConnectionStatus::Advertising);
 
   // Start advertising
@@ -122,10 +130,7 @@ void BLEBluefruit::startAdvLtd() {
 
     DEBUG_BLE_MSG("Failed to start advertising");
   }
-}
-
-void BLEBluefruit::stopAdv() {
-  Bluefruit.Advertising.stop();
+  DEBUG_BLE_MSG("Started connectable advertising");
 }
 
 bool BLEBluefruit::connected() {
@@ -142,33 +147,31 @@ void BLEBluefruit::setBatteryLevel(uint8_t level) {
 }
 
 void BLEBluefruit::selectDevice(uint8_t device_id) {
-
-  if (device_id == current_device_id) {
-    DEBUG_BLE_MSG("Already on requested device - no action needed");
-    // TODO(jesse): Implement this
+  if (device_id == 0) {
+    DEBUG_BLE_MSG("ERROR: No device slot selected");
+    return;
   }
-
-  // Stop any current advertising
-  Bluefruit.Advertising.stop();
-
-  // Check current connection state and disconnect if needed
-  if (Bluefruit.connected()) {
-    uint16_t conn_handle = Bluefruit.connHandle();
-    DEBUG_BLE_MSG("Connected to handle: ", conn_handle, " - Initiating disconnect...");
-
-    if (Bluefruit.disconnect(conn_handle)) {
+  if (device_id != current_device_id) {
+    if (Bluefruit.Periph.connected()) {
+      DEBUG_BLE_MSG("Disconnecting current connection");
+      disconnect();
+      // Wait for disconnect to complete before changing device
+      delay(100);
     } else {
-      DEBUG_BLE_MSG("WARNING: Disconnect request failed!");
+      DEBUG_BLE_MSG("Device not connected, skipping disconnect");
     }
-  } else {
-    DEBUG_BLE_MSG("No active connection");
+    stopAdvertising();
+    Hooks::onHostConnectionStatusChanged(current_device_id, kaleidoscope::HostConnectionStatus::DeviceUnselected);
+
+    DEBUG_BLE_MSG("Updating current_device_id: ", current_device_id, " -> ", device_id);
+
+    char name_buffer[48];
+    snprintf(name_buffer, sizeof(name_buffer), "%s (#%d)", USB_PRODUCT, device_id);
+    Bluefruit.setName(name_buffer);
+    Hooks::onHostConnectionStatusChanged(device_id, kaleidoscope::HostConnectionStatus::DeviceSelected);
+    current_device_id = device_id;
   }
-
-  DEBUG_BLE_MSG("Updating current_device_id: ", current_device_id, " -> ", device_id);
-  current_device_id = device_id;
-  Hooks::onHostConnectionStatusChanged(current_device_id, kaleidoscope::HostConnectionStatus::DeviceSelected);
-
-  startDirectedAdv();
+  startConnectableAdvertising();
 
   DEBUG_BLE_MSG(" ====== Device Selection Complete ======\n");
 }
@@ -188,28 +191,18 @@ bool BLEBluefruit::getConnectionSecurity(uint16_t conn_handle, ble_gap_conn_sec_
 }
 
 
-void BLEBluefruit::stopAdv_cb() {
-  DEBUG_BLE_MSG("stopAdv_cb: Advertising stopped");
+void BLEBluefruit::stop_advertising_cb() {
+  DEBUG_BLE_MSG("stop_advertising_cb: Advertising stopped");
 }
 
 void BLEBluefruit::connect_cb(uint16_t conn_handle) {
-  DEBUG_BLE_MSG("Connected");
-  printBLEAddress("Current address: ", Bluefruit.getAddr().addr);
-
-  BLEConnection *conn = Bluefruit.Connection(conn_handle);
+  BLEConnection* conn = Bluefruit.Connection(conn_handle);
   if (!conn) {
     DEBUG_BLE_MSG("ERROR: Could not get connection object");
     return;
   }
 
-  if (conn->bonded()) {
-    DEBUG_BLE_MSG("Connection reports as already bonded");
-  } else {
-    DEBUG_BLE_MSG("Initiating new pairing request");
-    Bluefruit.Security.setMITM(true);
-    conn->requestPairing();
-  }
-  Hooks::onHostConnectionStatusChanged(current_device_id, kaleidoscope::HostConnectionStatus::Connecting);
+  Bluefruit.Security.setMITM(true);
 }
 
 void BLEBluefruit::secured_cb(uint16_t conn_handle) {
@@ -224,77 +217,161 @@ void BLEBluefruit::secured_cb(uint16_t conn_handle) {
     DEBUG_BLE_MSG("Connection reports as already bonded");
   } else {
     DEBUG_BLE_MSG("Initiating new pairing request");
-    Bluefruit.Security.setMITM(true);
     conn->requestPairing();
   }
+
+  // Get actual connection parameters
+  uint16_t actual_interval = conn->getConnectionInterval();
+  uint16_t actual_latency = conn->getSlaveLatency();
+  uint16_t actual_timeout = conn->getSupervisionTimeout();
+  
+  DEBUG_BLE_MSG("Connection parameters:");
+  char msg[64];
+  snprintf(msg, sizeof(msg), "Interval: %dms", (int)(actual_interval * 1.25f)); // Convert from units to ms
+  DEBUG_BLE_MSG(msg);
+  snprintf(msg, sizeof(msg), "Latency: %d", actual_latency);
+  DEBUG_BLE_MSG(msg);
+  snprintf(msg, sizeof(msg), "Timeout: %dms", actual_timeout * 10); // Convert to ms
+  DEBUG_BLE_MSG(msg);
+
+  // Check if parameters match our requested values
+  if ((actual_interval * 1.25f) > CONN_INTERVAL_MAX_MS) {
+    snprintf(msg, sizeof(msg), "Warning: Connection interval %dms higher than requested %dms",
+             (int)(actual_interval * 1.25f), CONN_INTERVAL_MAX_MS);
+    DEBUG_BLE_MSG(msg);
+  }
+
+  if (actual_latency > SLAVE_LATENCY) {
+    snprintf(msg, sizeof(msg), "Warning: Slave latency %d higher than requested %d",
+             actual_latency, SLAVE_LATENCY);
+    DEBUG_BLE_MSG(msg);
+  }
+
+  // Get and log connection status and errors
+  int8_t rssi = conn->getRssi();
+  snprintf(msg, sizeof(msg), "RSSI: %d dBm", rssi);
+  DEBUG_BLE_MSG(msg);
+
+  uint16_t mtu = conn->getMtu();
+  snprintf(msg, sizeof(msg), "MTU: %d bytes", mtu);
+  DEBUG_BLE_MSG(msg);
+
+  uint16_t data_length = conn->getDataLength();
+  snprintf(msg, sizeof(msg), "Data Length: %d bytes", data_length);
+  DEBUG_BLE_MSG(msg);
+
+  snprintf(msg, sizeof(msg), "Connected. Handle: %d", conn_handle);
+  DEBUG_BLE_MSG(msg);
+
+
+  // Supervision timeout: 1000ms (100 * 10ms)
+  // TODO move this to "before connection" code
+  Bluefruit.Periph.setConnSupervisionTimeout(100);
+
+  //requestConnectionParameter is used to try to force a negotiation after connection is established 
+
+  conn->requestConnectionParameter(CONN_INTERVAL_MIN_MS, SLAVE_LATENCY, SUPERVISION_TIMEOUT_MS);
+
+  DEBUG_BLE_MSG("Connection status: ", conn->connected() ? "connected" : "disconnected");
+  DEBUG_BLE_MSG("After we requestConnectionParameter to try to force a lower latency and longer timeout");
+
+  // Get actual connection parameters
+  actual_interval = conn->getConnectionInterval();
+  actual_latency = conn->getSlaveLatency();
+  actual_timeout = conn->getSupervisionTimeout();
+  
+  DEBUG_BLE_MSG("Connection parameters:");
+  snprintf(msg, sizeof(msg), "Interval: %dms", (int)(actual_interval * 1.25f)); // Convert from units to ms
+  DEBUG_BLE_MSG(msg);
+  snprintf(msg, sizeof(msg), "Latency: %d", actual_latency);
+  DEBUG_BLE_MSG(msg);
+  snprintf(msg, sizeof(msg), "Timeout: %dms", actual_timeout * 10); // Convert to ms
+  DEBUG_BLE_MSG(msg);
+
+  // Check if parameters match our requested values
+  if ((actual_interval * 1.25f) > CONN_INTERVAL_MAX_MS) {
+    snprintf(msg, sizeof(msg), "Warning: Connection interval %dms higher than requested %dms",
+             (int)(actual_interval * 1.25f), CONN_INTERVAL_MAX_MS);
+    DEBUG_BLE_MSG(msg);
+  }
+
+  if (actual_latency > SLAVE_LATENCY) {
+    snprintf(msg, sizeof(msg), "Warning: Slave latency %d higher than requested %d",
+             actual_latency, SLAVE_LATENCY);
+    DEBUG_BLE_MSG(msg);
+  }
+
   Hooks::onHostConnectionStatusChanged(current_device_id, kaleidoscope::HostConnectionStatus::Connected);
 }
 
 void BLEBluefruit::pairing_complete_cb(uint16_t conn_handle, uint8_t auth_status) {
   DEBUG_BLE_MSG("Pairing complete, auth_status = ", auth_status);
 
-  BLEConnection *conn  = Bluefruit.Connection(conn_handle);
-  if (!conn) {
-    DEBUG_BLE_MSG("ERROR: Could not get connection object");
+  // Send pairing status before trying to get connection object
+  Hooks::onHostConnectionStatusChanged(current_device_id, 
+    auth_status == 0 ? kaleidoscope::HostConnectionStatus::PairingSuccess 
+                     : kaleidoscope::HostConnectionStatus::PairingFailed);
+
+  if (auth_status != 0) {
+    DEBUG_BLE_MSG("Pairing failed");
     return;
   }
-  Hooks::onHostConnectionStatusChanged(current_device_id, auth_status == 0 ? kaleidoscope::HostConnectionStatus::PairingSuccess : kaleidoscope::HostConnectionStatus::PairingFailed);
+
+  // Only try to get connection object if we're still connected
+  if (Bluefruit.Periph.connected()) {
+    BLEConnection *conn = Bluefruit.Connection(conn_handle);
+    if (!conn) {
+      DEBUG_BLE_MSG("ERROR: Could not get connection object");
+      return;
+    }
+
+    // Ensure connection parameters are set correctly after pairing
+    conn->requestConnectionParameter(CONN_INTERVAL_MIN_MS, SLAVE_LATENCY, SUPERVISION_TIMEOUT_MS);
+  } else {
+    DEBUG_BLE_MSG("Connection already closed when pairing completed");
+  }
 }
 
 void BLEBluefruit::disconnect_cb(uint16_t conn_handle, uint8_t reason) {
   DEBUG_BLE_MSG("Disconnected, reason = 0x", reason, HEX);
 
-  if (Bluefruit.Advertising.isRunning()) {
-    Bluefruit.Advertising.stop();
-  }
 
   switch (reason) {
   case BLE_HCI_REMOTE_USER_TERMINATED_CONNECTION:
     DEBUG_BLE_MSG("Remote device terminated connection");
-    startAdvLtd();
+    startDiscoverableAdvertising();
     break;
 
   case BLE_HCI_LOCAL_HOST_TERMINATED_CONNECTION:
-    DEBUG_BLE_MSG("Local device terminated connection");
-    startAdvLtd();
+    DEBUG_BLE_MSG("Local device terminated connection. Don't assume we should do something.");
     break;
 
   case BLE_HCI_REMOTE_DEV_TERMINATION_DUE_TO_POWER_OFF:
   case BLE_HCI_CONNECTION_TIMEOUT:
   default:
-    DEBUG_BLE_MSG("Attempting to reconnect to last device (reason=0x", reason, HEX, ")");
+    DEBUG_BLE_MSG("Attempting to reconnect to last device");
 
     if (current_device_id > 0) {
-      startDirectedAdv();
-    } else {
-      startAdvLtd();
+      delay(250);  // Give time for cleanup
+      startConnectableAdvertising();
     }
     break;
   }
+
   Hooks::onHostConnectionStatusChanged(current_device_id, kaleidoscope::HostConnectionStatus::Disconnected);
 }
 
-void BLEBluefruit::startDirectedAdv() {
+void BLEBluefruit::startConnectableAdvertising() {
+  stopAdvertising();
+  configureAdvertising();
+  Bluefruit.Advertising.addFlags(BLE_GAP_ADV_FLAGS_LE_ONLY_LIMITED_DISC_MODE);
 
-  if (Bluefruit.Advertising.isRunning()) {
-    Bluefruit.Advertising.stop();
-    delay(100);
-  }
-
-  Bluefruit.Advertising.clearData();
-  Bluefruit.ScanResponse.clearData();
-
-  Bluefruit.Advertising.setType(BLE_GAP_ADV_TYPE_CONNECTABLE_SCANNABLE_UNDIRECTED);
-
-  Bluefruit.Advertising.addFlags(BLE_GAP_ADV_FLAGS_LE_ONLY_GENERAL_DISC_MODE);
-  advCommon();
-
-  Bluefruit.Advertising.setInterval(32, 64);
-  Bluefruit.Advertising.setFastTimeout(30);
-
+  DEBUG_BLE_MSG("Attempting to start advertising...");
   if (!Bluefruit.Advertising.start(0)) {
     DEBUG_BLE_MSG("Failed to start advertising");
   }
+  DEBUG_BLE_MSG("Started connectable advertising");
+  Hooks::onHostConnectionStatusChanged(current_device_id, kaleidoscope::HostConnectionStatus::Advertising);
 }
 
 void BLEBluefruit::printBLEAddress(const char *prefix, const uint8_t *addr) {
@@ -307,7 +384,12 @@ void BLEBluefruit::printBLEAddress(const char *prefix, const uint8_t *addr) {
   Serial.println("");
 }
 
-void BLEBluefruit::advCommon() {
+void BLEBluefruit::configureAdvertising() {
+  // Reset advertising state
+  Bluefruit.Advertising.setType(BLE_GAP_ADV_TYPE_CONNECTABLE_SCANNABLE_UNDIRECTED);
+  Bluefruit.Advertising.clearData();
+  Bluefruit.ScanResponse.clearData();
+
   setSlotSpecificAddress(current_device_id);
   Bluefruit.Advertising.addTxPower();
   Bluefruit.Advertising.addAppearance(BLE_APPEARANCE_HID_KEYBOARD);
@@ -315,9 +397,16 @@ void BLEBluefruit::advCommon() {
   Bluefruit.Advertising.addName();
   Bluefruit.ScanResponse.addService(bleuart);
 
+  // Configure advertising timing parameters for optimal discovery and power usage
   Bluefruit.Advertising.restartOnDisconnect(true);
-  Bluefruit.Advertising.setInterval(32, 244);
-  Bluefruit.Advertising.setFastTimeout(30);
+  // Interval between 20ms (32*0.625) and 152.5ms (244*0.625)
+  Bluefruit.Advertising.setInterval(32, 244);    
+  // Time in fast advertising mode before switching to slow mode
+  Bluefruit.Advertising.setFastTimeout(30);      
+
+  // Log current advertising configuration for debugging connection issues
+  DEBUG_BLE_MSG("Advertising configured for device slot: ", current_device_id);
+  printBLEAddress("Using BLE address: ", Bluefruit.getAddr().addr);
 }
 
 void BLEBluefruit::setSlotSpecificAddress(uint8_t slot_id) {
@@ -327,14 +416,37 @@ void BLEBluefruit::setSlotSpecificAddress(uint8_t slot_id) {
   Bluefruit.setAddr(&slot_addr);
 }
 
+void BLEBluefruit::disconnect() {
+  // Disable auto-restart of advertising
+  Bluefruit.Advertising.restartOnDisconnect(false);
+
+  // Check current connection state and disconnect if needed
+  if (Bluefruit.connected()) {
+    uint16_t conn_handle = Bluefruit.connHandle();
+    DEBUG_BLE_MSG("Connected to handle: ", conn_handle, " - Initiating disconnect...");
+
+    if (Bluefruit.disconnect(conn_handle)) {
+    } else {
+      DEBUG_BLE_MSG("WARNING: Disconnect request failed!");
+    }
+  } else {
+    DEBUG_BLE_MSG("No active connection");
+  }
+}
+
+
 void BLEBluefruit::disconnectAndUnbond() {
+  unbond();
+  disconnect();
+}
+
+void BLEBluefruit::unbond() {
   uint16_t conn_handle = Bluefruit.connHandle();
   BLEConnection *conn  = Bluefruit.Connection(conn_handle);
   DEBUG_BLE_MSG("Disconnecting current connection and removing bond to peer address");
   ble_gap_addr_t peer_addr = conn->getPeerAddr();
   printBLEAddress("Removing bond to: ", peer_addr.addr);
   bond_remove_key(BLE_GAP_ROLE_PERIPH, &peer_addr);
-  Bluefruit.disconnect(conn_handle);
 }
 
 }  // namespace ble

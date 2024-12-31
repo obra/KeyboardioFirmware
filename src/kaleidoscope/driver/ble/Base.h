@@ -34,7 +34,7 @@ class Base {
   Base() {}
 
   void setup() {}
-  void startAdvLtd() {}
+  void startDiscoverableAdvertising() {}
   void startAdvConn() {}
   void stopAdv() {}
   bool connected() {
