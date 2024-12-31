@@ -78,9 +78,6 @@ void Runtime_::loop(void) {
     device().hid().onUSBReset();
   }
 
-  // Check to see if we should toggle between USB and BLE
-  device().autoHostConnectionMode();
-
   kaleidoscope::Hooks::beforeEachCycle();
 
   // Next, we scan the keyswitches. Any toggle-on or toggle-off events will
