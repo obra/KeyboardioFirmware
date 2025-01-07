@@ -2,19 +2,60 @@
 
 import re
 import os
+import argparse
 
-
-# Calculate SVG dimensions
-key_width = 32  # Width of the DSA keycap path
-key_height = 32  # Height of the DSA keycap path
-key_gap = 10  # Reduced gap to account for smaller key size
-keyboard_width = 12 * (key_width + key_gap) - key_gap
-keyboard_height = 6 * (key_height + key_gap) - key_gap
-padding = 30  # Reduced padding for smaller overall size
-text_size = 6.25
-legend_offset = 3
-icon_to_text_offset = 2
-icon_to_icon_offset = 4
+class LayoutConfig:
+    def __init__(self, mode='stickers'):
+        if mode == 'stickers':
+            # Sticker mode - white on black with bright colors
+            self.mode = 'stickers'
+            self.key_width = 32
+            self.key_height = 32
+            self.key_gap = 10
+            self.padding = 30
+            self.text_size = 6.25
+            self.legend_offset = 3
+            self.icon_to_text_offset = 2
+            self.icon_to_icon_offset = 4
+            self.scale_factor = 1.33
+            self.background_color = "#000000"
+            self.key_background = "#111111"
+            self.text_color = "#ffffff"
+            self.stroke_color = "#333333"
+            self.show_butterfly = True
+            self.layer_colors = {
+                'main': '#ffffff',   # QWERTY layer - white
+                'lower': '#66b3ff',  # LOWER layer - blue
+                'raise': '#ff944d',  # RAISE layer - orange
+                'fun': '#66ff66'     # FUN layer - green
+            }
+        else:  # layout-card mode
+            # Layout card mode - black on white with darker colors
+            self.mode = 'layout-card'
+            self.key_width = 32
+            self.key_height = 32
+            self.key_gap = 15  # Wider gaps for better readability
+            self.padding = 40
+            self.text_size = 6.75  # Slightly larger text
+            self.legend_offset = 1
+            self.icon_to_text_offset = 2.5
+            self.icon_to_icon_offset = 5
+            self.scale_factor = 1.5  # Larger overall size
+            self.background_color = "#ffffff"
+            self.key_background = "#f8f8f8"
+            self.text_color = "#000000"
+            self.stroke_color = "#dddddd"  # 50% lighter
+            self.show_butterfly = False
+            self.layer_colors = {
+                'main': '#000000',   # QWERTY layer - black
+                'lower': '#0066cc',  # LOWER layer - darker blue
+                'raise': '#e27857',  # RAISE layer - darker orange
+                'fun': '#006600'     # FUN layer - darker green
+            }
+        
+        # Calculate derived dimensions
+        self.keyboard_width = 12 * (self.key_width + self.key_gap) - self.key_gap
+        self.keyboard_height = 6 * (self.key_height + self.key_gap) - self.key_gap
 
 def parse_keymap(ino_file):
     with open(ino_file, 'r') as f:
@@ -144,28 +185,38 @@ def get_keyclick_icon():
 
 def get_warp_icon(quadrant):
     # quadrant can be 'nw', 'ne', 'sw', 'se'
-    fill = {
-        'nw': 'M4,4 L12,4 L12,12 L4,12 Z',  # Top-left quadrant
-        'ne': 'M12,4 L20,4 L20,12 L12,12 Z',  # Top-right quadrant
-        'sw': 'M4,12 L12,12 L12,20 L4,20 Z',  # Bottom-left quadrant
-        'se': 'M12,12 L20,12 L20,20 L12,20 Z'  # Bottom-right quadrant
+    rect_size = 8
+    gap = 2
+    total_size = 2 * rect_size + gap
+    
+    # Map quadrant to which rectangle should be filled
+    fill_coords = {
+        'nw': (0, 0),           # Top-left quadrant
+        'ne': (rect_size + gap, 0),    # Top-right quadrant
+        'sw': (0, rect_size + gap),    # Bottom-left quadrant
+        'se': (rect_size + gap, rect_size + gap)   # Bottom-right quadrant
     }[quadrant]
+    
     mouse_width = get_svg_path_width(get_mouse_icon())
+    
     return f'''<g transform="translate({-mouse_width},0)">
 {get_mouse_icon()}
 </g>
 <g transform="translate(6,0)">
-<rect x="4" y="4" width="16" height="16" rx="1" fill="none"/>
-<path d="{fill}" fill="currentColor"/>
+    <rect x="4" y="4" width="{total_size}" height="{total_size}" fill="none" stroke="currentColor"/>
+    <rect x="{fill_coords[0]+4 }" y="{fill_coords[1]+4}" width="{rect_size}" height="{rect_size}" fill="currentColor"/>
 </g>'''
 
 def get_warp_end_icon():
+    rect_size = 8
+    gap = 2
+    total_size = 2 * rect_size + gap
     mouse_width = get_svg_path_width(get_mouse_icon())
     return f'''<g transform="translate({-mouse_width},0)">
 {get_mouse_icon()}
 </g>
 <g transform="translate(6,0)">
-<rect x="4" y="4" width="16" height="16" fill="none"/>
+    <rect x="4" y="4" width="{total_size}" height="{total_size}" fill="none" stroke="currentColor"/>
 </g>'''
 
 def get_usb_icon():
@@ -284,15 +335,20 @@ def clean_key_name(key):
     
     return key
 
-def generate_svg(layers):
+def generate_svg(layers, config):
     # Centered paths for different key types
-    dsa_key = '''M31.98,28.85c-.16,1.71-1.36,2.98-3.09,3.12-3.97.37-8.43.59-12.42.6h-.02c-4.13-.02-8.31-.2-12.42-.6h.03c-1.7-.16-2.99-1.36-3.11-3.09h-.01c-.37-3.97-.6-8.43-.59-12.42-.01-4.14.18-8.32.6-12.43v.03c.17-1.72,1.33-2.95,3.08-3.11h0c4.13-.4,8.28-.6,12.43-.6h0c4.13,0,8.31.19,12.42.6h-.03c1.68.12,3.02,1.39,3.1,3.09h.02c.4,4.12.6,8.26.6,12.41h-.01c0,4.14-.18,8.32-.6,12.43'''
+    if (config.mode == 'stickers'):
+        dsa_key = '''M31.98,28.85c-.16,1.71-1.36,2.98-3.09,3.12-3.97.37-8.43.59-12.42.6h-.02c-4.13-.02-8.31-.2-12.42-.6h.03c-1.7-.16-2.99-1.36-3.11-3.09h-.01c-.37-3.97-.6-8.43-.59-12.42-.01-4.14.18-8.32.6-12.43v.03c.17-1.72,1.33-2.95,3.08-3.11h0c4.13-.4,8.28-.6,12.43-.6h0c4.13,0,8.31.19,12.42.6h-.03c1.68.12,3.02,1.39,3.1,3.09h.02c.4,4.12.6,8.26.6,12.41h-.01c0,4.14-.18,8.32-.6,12.43'''
+        homing_key = '''M28.1,30.72c1.35-.18,2.39-1.24,2.57-2.58h0c1.4-7.96,1.43-16.19,0-24.16h0c-.17-1.32-1.21-2.38-2.55-2.55h.01c-3.98-.73-8.04-1.07-12.09-1.08h.02c-4.06-.02-8.13.34-12.12,1.08h.03c-1.33.18-2.4,1.22-2.55,2.57h0C-.01,11.96,0,20.19,1.41,28.16h0c.18,1.32,1.21,2.38,2.55,2.55h-.01c7.97,1.44,16.23,1.47,24.19,0'''
+        space_key = '''M85.31.35H1.12h0c-.68-.04-.8.45-.78,1.04.71,10.07.76,20.54,0,30.61,0,.35-.02.71.15,1.01.15.18.39.24.63.22h0c.62-.21,84.4.4,84.81-.21.12-.23.17-.5.16-.78-.3-4.31-.51-9.43-.55-13.76-.04-5.49.17-11.62.55-17.1,0-.29-.03-.59-.17-.82-.16-.17-.38-.22-.63-.21'''
 
+    else:
+        dsa_key = 'M-2 -2 H36 V36 H-2 Z'
+        homing_key = "M-2 -2 Q17 2 36 -2 Q34 17 36 36 Q17 34 -2 36 Q2 17 -2 -2 Z"
+        space_key = 'M-2 -2 H84.25 V36 H-2 Z'
     # Centered 2U spacebar path
-    space_key = '''M85.31.35H1.12h0c-.68-.04-.8.45-.78,1.04.71,10.07.76,20.54,0,30.61,0,.35-.02.71.15,1.01.15.18.39.24.63.22h0c.62-.21,84.4.4,84.81-.21.12-.23.17-.5.16-.78-.3-4.31-.51-9.43-.55-13.76-.04-5.49.17-11.62.55-17.1,0-.29-.03-.59-.17-.82-.16-.17-.38-.22-.63-.21'''
 
     # Centered homing key path
-    homing_key = '''M28.1,30.72c1.35-.18,2.39-1.24,2.57-2.58h0c1.4-7.96,1.43-16.19,0-24.16h0c-.17-1.32-1.21-2.38-2.55-2.55h.01c-3.98-.73-8.04-1.07-12.09-1.08h.02c-4.06-.02-8.13.34-12.12,1.08h.03c-1.33.18-2.4,1.22-2.55,2.57h0C-.01,11.96,0,20.19,1.41,28.16h0c.18,1.32,1.21,2.38,2.55,2.55h-.01c7.97,1.44,16.23,1.47,24.19,0'''
 
     # Centered knob path
     knob_path = '''M39.45,19.9C39.45,9.1,30.7.35,19.9.35S.35,9.1.35,19.9s8.75,19.55,19.55,19.55,19.55-8.75,19.55-19.55'''
@@ -301,21 +357,21 @@ def generate_svg(layers):
 
     def render_key(idx, row, col, is_space_key=False, is_homing=False):
 
-        x = col * (key_width + key_gap)
-        y = row * (key_height + key_gap)
+        x = col * (config.key_width + config.key_gap)
+        y = row * (config.key_height + config.key_gap)
         
         # Check if this is the volume knob
         if row == 0 and col == 11:
-            return f'''        <g transform="translate({x + key_width/2}, { y+key_gap })">
-                <path d="{knob_path}" fill="none" stroke="#333333" stroke-width=".7"/>
+            return f'''        <g transform="translate({x + config.key_width/2}, { y+config.key_gap })">
+                <path d="{knob_path}" fill="none" stroke="{config.stroke_color}" stroke-width=".7"/>
                 <path id="curve_{row}_{col}" fill="none" d="M-10,0 A10,10 0 0,1 10,0" />
                
-                <g transform="translate({key_width/2+4}, {key_height/2+2})">
-                 <text fill="#888888" font-size="{text_size}">
+                <g transform="translate({config.key_width/2+4}, {config.key_height/2+2})">
+                 <text fill="{config.text_color}" font-size="{config.text_size}">
                     <textPath href="#curve_{row}_{col}" startOffset="50%" text-anchor="middle">-VOL+</textPath>
                 </text>
                 </g>
-                <g transform="translate({13}, {15}) scale(0.5)" fill="none" stroke="white" stroke-width="2">
+                <g transform="translate({13}, {15}) scale(0.5)" fill="none" stroke="{config.text_color}" stroke-width="1">
                     {get_play_pause_icon()}
                 </g>
             </g>
@@ -328,10 +384,14 @@ def generate_svg(layers):
         # Handle space key (double width)
         if is_space_key:
             space_width = get_svg_path_width(space_key)
-            return f'''        <g transform="translate({x + key_gap }, {y + key_height/2})">
-                <path d="{space_key}" fill="none" stroke="#333333" stroke-width=".7"/>
-                <text x="{legend_offset}" y="{key_height-legend_offset}" fill="#ffffff" font-size="{text_size}" text-anchor="bottom" >Space</text>
-                <text x="{space_width-19}" y="{key_height-legend_offset}" fill="#66b3ff" font-size="{text_size}" text-anchor="end">Bksp</text>
+            if config.mode == 'stickers':
+                end_offset = space_width-19
+            else:
+                end_offset = space_width-config.legend_offset*4
+            return f'''        <g transform="translate({x + config.key_gap }, {y + config.key_height/2})">
+                <path d="{space_key}" fill="none" stroke="{config.stroke_color}" stroke-width=".7"/>
+                <text x="{config.legend_offset}" y="{config.key_height-config.legend_offset}" fill="{config.text_color}" font-size="{config.text_size}" text-anchor="bottom" >Space</text>
+                <text x="{end_offset}" y="{config.key_height-config.legend_offset}" fill="{config.layer_colors['lower']}" font-size="{config.text_size}" text-anchor="end">Bksp</text>
             </g>
 '''
 
@@ -349,24 +409,23 @@ def generate_svg(layers):
 
         # Use homing key path for F and J keys
         key_path = homing_key if is_homing else dsa_key
-        stroke_color = "#333333" 
+        stroke_color = config.stroke_color 
 
-        svg = f'''        <g transform="translate({x + key_width/2}, {y + key_height/2})">
+        svg = f'''        <g transform="translate({x + config.key_width/2}, {y + config.key_height/2})">
             <path d="{key_path}" fill="none" stroke="{stroke_color}" stroke-width=".7"/>
 '''
 
         def key_label(content, x, y, layer='main', color_override=None, scale=0.3):  
-            color = {
-                    'main': '#ffffff',   # QWERTY layer - white
-                    'lower': '#66b3ff',  # LOWER layer - blue
-                    'raise': '#ff944d',  # RAISE layer - orange
-                    'fun': '#66ff66'     # FUN layer - green
-            }[layer]
-
+            color = config.layer_colors[layer]
             if color_override:
                 color = color_override
             text_anchor = "start" if layer in ['lower', 'raise'] else "start"
 
+            # Check if this is a mouse warp icon
+            if isinstance(content, str) and content.startswith('<path'):
+                if 'fill="currentColor"' in content:  # Mouse warp icon with filled quadrant
+                    content = content.replace('fill="currentColor"', f'fill="{config.stroke_color}"')
+            
             # Check if content is an icon (SVG path/group) or text
             is_icon = any(content.startswith(prefix) for prefix in ['<path', '<g', '<rect', '<circle'])
             
@@ -375,79 +434,67 @@ def generate_svg(layers):
                 icon_width = get_svg_path_width(icon) * scale
                 icon_height = get_svg_path_height(icon) * scale
                 x_pos = x if layer in ['qwerty', 'fun'] else (x-icon_width-icon_width)
-                text_x_pos = x_pos +icon_width+icon_to_text_offset if layer in ['qwerty', 'fun'] else x_pos+icon_width+icon_to_text_offset
+                text_x_pos = x_pos +icon_width+config.icon_to_text_offset if layer in ['qwerty', 'fun'] else x_pos+icon_width+config.icon_to_text_offset
 
                 return f'''            <g transform="translate({x_pos},{y-icon_height}) scale({scale})" fill="none" stroke="{color}" stroke-width="2">
                 {icon}
             </g>
-            <text x="{text_x_pos}" y="{y}" fill="{color}" font-size="{text_size}" text-anchor="{text_anchor}">{text}</text>
+            <text x="{text_x_pos}" y="{y}" fill="{color}" font-size="{config.text_size}" text-anchor="{text_anchor}">{text}</text>
 '''
 
             elif is_icon:  # Single icon
                 icon_width = get_svg_path_width(content) * scale
                 icon_height = get_svg_path_height(content) * scale
-                x_pos = legend_offset if layer in ['qwerty', 'fun'] else key_width-icon_width-2
+                x_pos = config.legend_offset if layer in ['qwerty', 'fun'] else config.key_width-icon_width
 
-                return f'''            <g transform="translate({x_pos},{legend_offset}) scale({scale})" fill="none" stroke="{color}" text-anchor="{text_anchor}" stroke-width="2">
+                return f'''            <g transform="translate({x_pos},{config.legend_offset+3.25}) scale({scale})" fill="none" stroke="{color}" color="{color}" text-anchor="{text_anchor}" stroke-width="2">
                 {content}
             </g>
 '''
             else:  # Plain text
                 text_anchor = "end" if layer in ['lower', 'raise'] else "start"
-                return f'''            <text x="{x}" y="{y}" fill="{color}" font-size="{text_size}" text-anchor="{text_anchor}">{content}</text>
+                return f'''            <text x="{x}" y="{y}" fill="{color}" font-size="{config.text_size}" text-anchor="{text_anchor}">{content}</text>
 '''
         
         # Add text elements for each layer with smaller font sizes and adjusted positions
         if qwerty_key:
             if isinstance(qwerty_key, tuple):
                 text, css_class = qwerty_key
-                color = {'layer-lower': '#66b3ff', 'layer-raise': '#ff944d', 'layer-fun': '#66ff66'}.get(css_class, '#ffffff')
-                svg += key_label(text, legend_offset, key_height-legend_offset, 'main', color)
+                # strip layer- from the css class
+                css_class = css_class.replace('layer-', '')
+                color = config.layer_colors[css_class]
+                svg += key_label(text, config.legend_offset, config.key_height-config.legend_offset, 'main', color)
             elif qwerty_key != '___':
-                svg += key_label(qwerty_key, legend_offset, key_height-legend_offset, 'main')
+                svg += key_label(qwerty_key, config.legend_offset, config.key_height-config.legend_offset, 'main')
 
         if lower_key and lower_key != '___':
-            svg += key_label(lower_key, key_width-legend_offset, key_height-legend_offset, 'lower')
+            svg += key_label(lower_key, config.key_width-config.legend_offset, config.key_height-config.legend_offset, 'lower')
 
         if raise_key and raise_key != '___':
-            svg += key_label(raise_key, key_width-legend_offset, text_size+3, 'raise')
+            svg += key_label(raise_key, config.key_width-config.legend_offset, config.text_size+3, 'raise')
 
         if fun_key and fun_key != '___':
-            svg += key_label(fun_key, legend_offset, text_size+3, 'fun')
+            svg += key_label(fun_key, config.legend_offset, config.text_size+3, 'fun')
         
         svg += '''        </g>
 '''
         return svg
 
 
-    scale_factor = 1.33
+    scale_factor = config.scale_factor
     svg_template = f'''<?xml version="1.0" encoding="UTF-8" standalone="no"?>
-<svg width="{scale_factor * (   keyboard_width + 3*padding)}" height="{scale_factor * (keyboard_height + 3*padding)}" 
+<svg width="{scale_factor * (   config.keyboard_width + 3*config.padding)}" height="{scale_factor * (config.keyboard_height + 3*config.padding)}" 
      xmlns="http://www.w3.org/2000/svg">
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&amp;display=swap');
-        text {{ font-family: 'Gorton Perfected', sans-serif; }}
+        text {{ font-family: 'Gorton Perfected', sans-serif;
+        font-weight: 600;}}
     </style>
     <g transform="scale({scale_factor})">
-    <rect x="{0}" y="{0}" width="{keyboard_width + 3*padding}" height="{keyboard_height + 3*padding}" fill="#000000"/>
-    <rect x="{padding  }" y="{padding  }" width="{keyboard_width+  padding}" height="{keyboard_height + padding}" rx="8" fill="#111111"/>
-    <g transform="translate({padding}, {padding})">
-    <!-- Butterfly Logo -->
-    <g transform="translate({key_width+(key_gap)}, {key_gap*2}) ">
-              <circle cx="11.875" cy="9.5" r="19.55" fill="none" stroke="#333333" stroke-width=".7" />
-
-        <g transform="scale(0.028)">
-
-            <path fill="#ffffff" stroke="#333333" stroke-width="3" d="M422.6 261.1c-21.2 0-38.7 35-38.7 95.2 0 60.3 15.6 188.3 38.7 188.3 23.1 0 38.7-128 38.7-188.3 0-60.3-17.5-95.2-38.7-95.2"/>
-            <path fill="#ffffff" stroke="#333333" stroke-width="3" transform="matrix(.8869 -.4619 .4619 .8869 -55.651 199.1881)" d="M369.5 176.6h19v73.4h-19z"/>
-            <path fill="#ffffff" stroke="#333333" stroke-width="3" transform="matrix(.4618 -.887 .887 .4618 61.4743 527.8238)" d="M429 203.8h73.4v19H429z"/>
-            <path fill="#ffffff" stroke="#333333" stroke-width="3" d="M58 90.4C17.2 80.7-6.2 105.3 1.2 154c15.5 101.9 52 164.5 129.9 183.5 59.3 14.4 221.8 20 221.8 20-33.3-162.4-195.1-243.4-294.9-267.1"/>
-            <path fill="#ffffff" stroke="#333333" stroke-width="3" d="M355 389.5s-71.1-5.6-119-1.6c-61 5.1-98 25.6-98 96.2 0 103.5 99.5 150.2 150.4 147.5 20.9-1.1 56.9-44.1 69.5-77.5 8.3-21.9 11.9-42.3 8.9-73.9-1.8-19.4-11.8-90.7-11.8-90.7"/>
-            <path fill="#ffffff" stroke="#333333" stroke-width="3" d="M786.7 90.4c-99.8 23.7-261.7 104.7-295 267.1 0 0 162.6-5.6 221.8-20 77.9-19 114.4-81.6 129.9-183.5 7.5-48.7-15.9-73.3-56.7-63.6"/>
-            <path fill="#ffffff" stroke="#333333" stroke-width="3" d="M608.7 387.9c-47.8-4-119 1.6-119 1.6s-10 71.4-11.8 90.7c-3 31.6.7 51.9 8.9 73.9 12.6 33.4 48.5 76.4 69.5 77.5 50.8 2.7 150.4-44 150.4-147.5 0-70.6-37-91.1-98-96.2"/>
-        </g>
-
-    </g>
+    <rect x="{0}" y="{0}" width="{config.keyboard_width + 3*config.padding}" height="{config.keyboard_height + 3*config.padding}" fill="{config.background_color}"/>
+    <rect x="{config.padding  }" y="{config.padding  }" width="{config.keyboard_width+  config.padding}" height="{config.keyboard_height + config.padding}" rx="8" fill="{config.background_color}"/>
+    <g transform="translate({config.padding}, {config.padding})">
+    <!-- Logo -->
+              {get_logo_element(config)}
     
 '''
 
@@ -473,22 +520,35 @@ def generate_svg(layers):
     svg_template += '</g></g></svg>'
     return svg_template
 
-def main():
+def get_logo_element(config):
+    """Get the logo element - either butterfly or logo.png"""
     script_dir = os.path.dirname(os.path.abspath(__file__))
-    ino_file = os.path.join(script_dir, 'Preonic.ino')
-    svg_file = os.path.join(script_dir, 'layout.svg')
+    logo_path = os.path.join(script_dir, 'logo.png')
     
-    layers = parse_keymap(ino_file)
-    if not layers:
-        print("Error: Could not parse keymap from .ino file")
-        return
-    
-    svg_content = generate_svg(layers)
-    with open(svg_file, 'w') as f:
-        f.write(svg_content)
-    
-    print(f"Generated layout at: {svg_file}")
-
+    if not config.show_butterfly and os.path.exists(logo_path):
+        # Convert 20mm to pixels (assuming 96 DPI)
+        height_px = 25
+        return f'''    <g transform="translate({config.key_width+8}, {config.key_gap*1.5}) ">
+<image href="logo.png" height="{height_px}" preserveAspectRatio="xMidYMid meet"/>
+</g>
+<text x="{config.key_width+150}" y="{config.key_gap*2.75}" font-size="18" font-weight="bold" fill="{config.text_color}">Preonic</text>'''
+    elif config.show_butterfly:
+        
+        return f'''
+            <g transform="translate({config.key_width+(config.key_gap)}, {config.key_gap*2}) ">
+<circle cx="11.875" cy="9.5" r="19.55" fill="none" stroke="{config.stroke_color}" stroke-width=".7" />
+        <g transform="scale(0.028)">
+            <path fill="#ffffff" stroke="#333333" stroke-width="3" d="M422.6 261.1c-21.2 0-38.7 35-38.7 95.2 0 60.3 15.6 188.3 38.7 188.3 23.1 0 38.7-128 38.7-188.3 0-60.3-17.5-95.2-38.7-95.2"/>
+            <path fill="#ffffff" stroke="#333333" stroke-width="3" transform="matrix(.8869 -.4619 .4619 .8869 -55.651 199.1881)" d="M369.5 176.6h19v73.4h-19z"/>
+            <path fill="#ffffff" stroke="#333333" stroke-width="3" transform="matrix(.4618 -.887 .887 .4618 61.4743 527.8238)" d="M429 203.8h73.4v19H429z"/>
+            <path fill="#ffffff" stroke="#333333" stroke-width="3" d="M58 90.4C17.2 80.7-6.2 105.3 1.2 154c15.5 101.9 52 164.5 129.9 183.5 59.3 14.4 221.8 20 221.8 20-33.3-162.4-195.1-243.4-294.9-267.1"/>
+            <path fill="#ffffff" stroke="#333333" stroke-width="3" d="M355 389.5s-71.1-5.6-119-1.6c-61 5.1-98 25.6-98 96.2 0 103.5 99.5 150.2 150.4 147.5 20.9-1.1 56.9-44.1 69.5-77.5 8.3-21.9 11.9-42.3 8.9-73.9-1.8-19.4-11.8-90.7-11.8-90.7"/>
+            <path fill="#ffffff" stroke="#333333" stroke-width="3" d="M786.7 90.4c-99.8 23.7-261.7 104.7-295 267.1 0 0 162.6-5.6 221.8-20 77.9-19 114.4-81.6 129.9-183.5 7.5-48.7-15.9-73.3-56.7-63.6"/>
+            <path fill="#ffffff" stroke="#333333" stroke-width="3" d="M608.7 387.9c-47.8-4-119 1.6-119 1.6s-10 71.4-11.8 90.7c-3 31.6.7 51.9 8.9 73.9 12.6 33.4 48.5 76.4 69.5 77.5 50.8 2.7 150.4-44 150.4-147.5 0-70.6-37-91.1-98-96.2"/>
+        </g>
+        </g>'''
+    else:
+        return ''  # No logo if butterfly is disabled and logo.png doesn't exist
 
 def get_svg_path_width(path_d):
     """
@@ -537,6 +597,27 @@ def get_svg_path_height(path_d):
     # Calculate height
     return max(y_coords) - min(y_coords)
 
+
+def main():
+    parser = argparse.ArgumentParser(description='Generate keyboard layout')
+    parser.add_argument('--stickers', action='store_true', help='Generate sticker layout (white on black)')
+    parser.add_argument('--layout-card', action='store_true', help='Generate layout card (black on white)')
+    args = parser.parse_args()
+
+    if args.layout_card:
+        config = LayoutConfig('layout-card')
+        output_file = 'layout-card.svg'
+    else:  # default to stickers mode
+        config = LayoutConfig('stickers')
+        output_file = 'layout.svg'
+
+    ino_file = os.path.join(os.path.dirname(__file__), 'Preonic.ino')
+    layers = parse_keymap(ino_file)
+    svg = generate_svg(layers, config)
+    
+    with open(output_file, 'w') as f:
+        f.write(svg)
+    print(f'Generated layout at: {os.path.abspath(output_file)}')
 
 if __name__ == '__main__':
     main()
