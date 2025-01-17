@@ -59,7 +59,7 @@ class HIDD : public Adafruit_USBD_HID {
        * 20ms of host echoing the resume downstream, and 10ms of recovery time
        * once the bus has resumed.
        */
-      delay(30);
+      delay(1);
     }
     /*
      * Block for up to 250ms for endpoint to become ready. If the host is polling,
@@ -78,7 +78,7 @@ class HIDD : public Adafruit_USBD_HID {
      *
      * Unfortunately, we usually can't abort a packet transmission once queued.
      */
-    for (int timeout = 250; timeout-- && !ready();) {
+    for (int timeout = 500; timeout-- && !ready();) {
       delay(1);
     }
     if (!ready()) {
