@@ -39,10 +39,14 @@ BLEDis BLEBluefruit::bledis;
 BLEBas BLEBluefruit::blebas;
 BLEUartWrapper BLEBluefruit::bleuart;
 
-
 void BLEBluefruit::setup() {
 
-  Bluefruit.configPrphBandwidth(BANDWIDTH_LOW);
+  // Configure MTU and queue sizes. This should happen before 'begin'
+  Bluefruit.configPrphConn(MTU_SIZE,              // MTU size
+                          EVENT_LENGTH,           // Event length
+                          HVN_QUEUE_SIZE,        // HVN queue size
+                          WRITE_CMD_QUEUE_SIZE); // Write CMD queue size
+
   if (!Bluefruit.begin()) {
     DEBUG_BLE_MSG("Failed to initialize Bluefruit");
     return;
@@ -60,7 +64,7 @@ void BLEBluefruit::setup() {
   sd_power_mode_set(NRF_POWER_MODE_CONSTLAT);
 
   // Set lower TX power - still good for 10m range
-  Bluefruit.setTxPower(-8);
+  Bluefruit.setTxPower(CONN_TX_POWER);
 
   // Disable Bluefruit's built in LED support since it's designed for a single-color LED, not our RGB LEDs.
   // TODO(anybody): make this configurable down the line.
@@ -203,6 +207,8 @@ void BLEBluefruit::connect_cb(uint16_t conn_handle) {
   }
 
   Bluefruit.Security.setMITM(true);
+
+
 }
 
 void BLEBluefruit::secured_cb(uint16_t conn_handle) {
