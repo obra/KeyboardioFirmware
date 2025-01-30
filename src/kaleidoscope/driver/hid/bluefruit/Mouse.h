@@ -27,6 +27,8 @@
 #include "kaleidoscope/driver/hid/apis/MouseAPI.h"
 #include "kaleidoscope/driver/hid/base/Mouse.h"
 #include "kaleidoscope/driver/hid/bluefruit/HIDD.h"
+#include "kaleidoscope/trace.h"
+
 
 namespace kaleidoscope {
 namespace driver {
@@ -39,10 +41,12 @@ class Mouse_ : public MouseAPI {
 
  protected:
   void sendReportUnchecked() override {
+    DEBUG_TRACE("HID", "Sending Mouse report");
+    
     if (blehid.isBootMode()) {
-      blehid.bootMouseReport(&report_, sizeof(report_));
+      blehid.sendBootMouseReport(&report_, sizeof(report_));
     } else {
-      blehid.inputReport(RID_MOUSE, &report_, sizeof(report_));
+      blehid.sendInputReport(RID_MOUSE, &report_, sizeof(report_));
     }
   }
 };

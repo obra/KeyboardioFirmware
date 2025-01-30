@@ -71,6 +71,65 @@ void HIDD::setLEDcb(BLECharacteristic::write_cb_t fp) {
   _chr_boot_keyboard_output->setWriteCallback(fp);
 }
 
+// Retry configuration
+static constexpr uint8_t MAX_RETRIES = 6;
+static constexpr uint32_t RETRY_DELAY_MS = 10;
+
+// Track consecutive failures across all senders
+static uint16_t consecutive_failures = 0;
+
+bool HIDD::send_with_retries(ReportType type, uint8_t report_id, const void* data, uint8_t length) {
+  uint8_t retry_count = 0;
+  
+  do {
+    BLEConnection* conn = Bluefruit.Connection(0);
+    if (!conn || !conn->connected()) {
+      return false;
+    }
+
+    bool success;
+    switch (type) {
+      case ReportType::BootKeyboard:
+        success = BLEHidGeneric::bootKeyboardReport(data, length);
+        break;
+      case ReportType::BootMouse:
+        success = BLEHidGeneric::bootMouseReport(data, length);
+        break;
+      case ReportType::Input:
+        success = BLEHidGeneric::inputReport(report_id, data, length);
+        break;
+    }
+
+    if (success) {
+      consecutive_failures = 0;
+      return true;
+    }
+
+    consecutive_failures++;
+    retry_count++;
+    
+    if (retry_count < MAX_RETRIES) {
+      delay(RETRY_DELAY_MS);
+    }
+    
+  } while (retry_count < MAX_RETRIES);
+  
+  return false;
+}
+
+bool HIDD::sendBootKeyboardReport(const void* data, uint8_t length) {
+  return send_with_retries(ReportType::BootKeyboard, 0, data, length);
+}
+
+bool HIDD::sendBootMouseReport(const void* data, uint8_t length) {
+  return send_with_retries(ReportType::BootMouse, 0, data, length);
+}
+
+bool HIDD::sendInputReport(uint8_t report_id, const void* data, uint8_t length) {
+  return send_with_retries(ReportType::Input, report_id, data, length);
+}
+
+
 HIDD blehid;
 
 }  // namespace bluefruit

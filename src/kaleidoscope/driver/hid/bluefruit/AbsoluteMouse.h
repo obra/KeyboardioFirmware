@@ -28,6 +28,7 @@
 
 #include "kaleidoscope/driver/hid/apis/AbsoluteMouseAPI.h"
 #include "kaleidoscope/driver/hid/bluefruit/HIDD.h"
+#include "kaleidoscope/trace.h"
 
 namespace kaleidoscope {
 namespace driver {
@@ -37,10 +38,13 @@ namespace bluefruit {
 class AbsoluteMouse_ : public AbsoluteMouseAPI {
  public:
   void sendReport(void *data, int length) override {
+    DEBUG_TRACE("HID", "Sending Absolute Mouse report");
+    
     if (blehid.isBootMode()) {
       return;
     }
-    blehid.inputReport(RID_ABS_MOUSE, data, length);
+    
+    blehid.sendInputReport(RID_ABS_MOUSE, data, length);
   }
 };
 

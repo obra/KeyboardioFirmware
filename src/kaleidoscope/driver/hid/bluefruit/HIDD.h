@@ -43,11 +43,45 @@ enum {
   RID_ABS_MOUSE,
 };
 
+enum class ReportType {
+  BootKeyboard,
+  BootMouse,
+  Input
+};
+
 class HIDD : public BLEHidGeneric {
  public:
   HIDD();
   err_t begin();
   void setLEDcb(BLECharacteristic::write_cb_t fp);
+
+  /**
+   * Send a boot keyboard report with retries
+   * @param data Report data
+   * @param length Length of report
+   * @return true if send was successful
+   */
+  bool sendBootKeyboardReport(const void* data, uint8_t length);
+
+  /**
+   * Send a boot mouse report with retries
+   * @param data Report data
+   * @param length Length of report
+   * @return true if send was successful
+   */
+  bool sendBootMouseReport(const void* data, uint8_t length);
+
+  /**
+   * Send an input report with retries
+   * @param report_id Report ID
+   * @param data Report data
+   * @param length Length of report
+   * @return true if send was successful
+   */
+  bool sendInputReport(uint8_t report_id, const void* data, uint8_t length);
+
+ private:
+  bool send_with_retries(ReportType type, uint8_t report_id, const void* data, uint8_t length);
 };
 
 extern HIDD blehid;
