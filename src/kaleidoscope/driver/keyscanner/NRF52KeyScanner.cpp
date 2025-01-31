@@ -20,59 +20,27 @@
  * this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#pragma once
+#include "NRF52KeyScanner.h"
 
 namespace kaleidoscope {
+namespace driver {
+namespace keyscanner {
 
-template<typename T, size_t SIZE = 32>
-class QueueArray {
- public:
-  QueueArray() : head_(0), tail_(0), count_(0) {}
+// Initialize static pointer to active scanner
+TimerHandlerInterface* active_scanner_ = nullptr;
 
-  bool push(const T& item) {
-    if (count_ >= SIZE) {
-      return false;
-    }
-    
-    buffer_[tail_] = item;
-    tail_ = (tail_ + 1) % SIZE;
-    count_++;
-    return true;
-  }
-
-  T pop() {
-    if (count_ == 0) {
-      return T();
-    }
-    
-    T item = buffer_[head_];
-    head_ = (head_ + 1) % SIZE;
-    count_--;
-    return item;
-  }
-
-  T peek() const {
-    if (count_ == 0) return T();
-    return buffer_[head_];
-  }
-
-  bool isEmpty() const {
-    return count_ == 0;
-  }
-
-  bool isFull() const {
-    return count_ >= SIZE;
-  }
-
-  size_t size() const {
-    return count_;
-  }
-
- private:
-  T buffer_[SIZE];
-  size_t head_;
-  size_t tail_;
-  size_t count_;
-};
-
+} // namespace keyscanner
+} // namespace driver
 } // namespace kaleidoscope
+
+// Timer1 IRQ handler implementation
+extern "C" {
+void TIMER1_IRQHandler(void) {
+  if (NRF_TIMER1->EVENTS_COMPARE[0]) {
+    NRF_TIMER1->EVENTS_COMPARE[0] = 0;
+    if (kaleidoscope::driver::keyscanner::active_scanner_) {
+      kaleidoscope::driver::keyscanner::active_scanner_->handleTimer();
+    }
+  }
+}
+}
