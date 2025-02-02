@@ -307,6 +307,9 @@ void BLEBluefruit::secured_cb(uint16_t conn_handle) {
     DEBUG_BLE_MSG(msg);
   }
 
+    // Send a BLE-specific null keyboard report to prevent the host from getting stuck keys
+  kaleidoscope::Runtime.device().setHostConnectionMode(MODE_BLE);
+  kaleidoscope::Runtime.device().hid().keyboard().releaseAllKeys();
   Hooks::onHostConnectionStatusChanged(current_device_id, kaleidoscope::HostConnectionStatus::Connected);
 }
 
@@ -430,6 +433,10 @@ void BLEBluefruit::disconnect() {
   if (Bluefruit.connected()) {
     uint16_t conn_handle = Bluefruit.connHandle();
     DEBUG_BLE_MSG("Connected to handle: ", conn_handle, " - Initiating disconnect...");
+
+  // Send a BLE-specific null keyboard report before disconnecting to prevent stuck keys
+  kaleidoscope::Runtime.device().setHostConnectionMode(MODE_BLE);
+  kaleidoscope::Runtime.device().hid().keyboard().releaseAllKeys();
 
     if (Bluefruit.disconnect(conn_handle)) {
     } else {
