@@ -115,17 +115,17 @@ class BLEBluefruit : public Base {
   static void disconnect();
 
   // Connection parameter constants for keyboard optimization
-  static constexpr uint16_t CONN_INTERVAL_MIN_MS = 6;   
-  static constexpr uint16_t CONN_INTERVAL_MAX_MS = 12;   
-  static constexpr uint16_t SLAVE_LATENCY = 0;           
+  static constexpr uint16_t CONN_INTERVAL_MIN_MS = 12;   
+  static constexpr uint16_t CONN_INTERVAL_MAX_MS = 24;   
+  static constexpr uint16_t SLAVE_LATENCY = 4;           
   static constexpr uint16_t SUPERVISION_TIMEOUT_MS = 400; 
   static constexpr int8_t CONN_TX_POWER = -8;
 
   // MTU and queue size configuration
-  static constexpr uint16_t MTU_SIZE = 32;          
-  static constexpr uint16_t EVENT_LENGTH = BLE_GAP_EVENT_LENGTH_DEFAULT;      // Event length is in 1.25ms units - BLE_GAP_EVENT_LENGTH_DEFAULT is '3'
+  static constexpr uint16_t MTU_SIZE = 23;          
+  static constexpr uint16_t EVENT_LENGTH = BLE_GAP_EVENT_LENGTH_MIN;      // Event length is in 1.25ms units - BLE_GAP_EVENT_LENGTH_DEFAULT is '3'
   static constexpr uint8_t HVN_QUEUE_SIZE = 16;     // Match previous working config
-  static constexpr uint8_t WRITE_CMD_QUEUE_SIZE = 8;// Default write command queue
+  static constexpr uint8_t WRITE_CMD_QUEUE_SIZE = 2;// Default write command queue
 
  private:
   static constexpr uint8_t SECURITY_MODE_ENCRYPTED = 1;
