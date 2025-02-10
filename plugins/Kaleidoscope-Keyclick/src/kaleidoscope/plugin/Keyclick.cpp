@@ -23,7 +23,7 @@
 
 
 #include "kaleidoscope/plugin/Keyclick.h"
-
+#include <kaleidoscope/keyswitch_state.h>      // for keyToggledOn
 #include <Kaleidoscope-EEPROM-Settings.h>  // for EEPROMSettings
 #include <Kaleidoscope-FocusSerial.h>      // for Focus, FocusSerial
 
@@ -54,7 +54,7 @@ EventHandlerResult Keyclick::onKeyswitchEvent(KeyEvent &event) {
   }
 
   // If enabled and it's a keypress (not release), play the click
-  if (settings_.enabled && event.state) {
+  if (settings_.enabled && keyToggledOn(event.state)) {
     // Use our speaker driver to play the keyclick sound
     Runtime.device().speaker().playTone(DEFAULT_FREQUENCY, DEFAULT_DURATION);
   }
