@@ -74,6 +74,20 @@ class Simple : public kaleidoscope::driver::keyscanner::Base<_KeyScannerProps> {
   static row_state_t matrix_state_[_KeyScannerProps::matrix_rows];
   static uint32_t next_scan_at_;
 
+ protected:
+  // Protected methods for subclasses to modify matrix state
+  void setKeyState(uint8_t row, uint8_t col, bool state) {
+    if (state) {
+      matrix_state_[row].current |= (1UL << col);
+    } else {
+      matrix_state_[row].current &= ~(1UL << col);
+    }
+  }
+
+  bool getKeyState(uint8_t row, uint8_t col) const {
+    return (matrix_state_[row].current & (1UL << col)) != 0;
+  }
+
  public:
   void setup() {
     static_assert(
@@ -112,7 +126,11 @@ class Simple : public kaleidoscope::driver::keyscanner::Base<_KeyScannerProps> {
         }
       }
     }
+    postReadMatrix();
   }
+
+  virtual void postReadMatrix() {}
+
   void scanMatrix() {
     uint32_t current_micros_ = micros();
     if (current_micros_ >= next_scan_at_) {
@@ -120,6 +138,7 @@ class Simple : public kaleidoscope::driver::keyscanner::Base<_KeyScannerProps> {
       readMatrix();
     }
     actOnMatrixScan();
+    updateMatrixScanKeyState();
   }
 
   void __attribute__((optimize(3))) actOnMatrixScan() {
@@ -130,8 +149,14 @@ class Simple : public kaleidoscope::driver::keyscanner::Base<_KeyScannerProps> {
           ThisType::handleKeyswitchEvent(Key_NoKey, typename _KeyScannerProps::KeyAddr(row, col), keyState);
         }
       }
-      matrix_state_[row].previous = matrix_state_[row].current;
     }
+  }
+
+  void __attribute__((optimize(3))) updateMatrixScanKeyState (){ 
+    for (uint8_t row = 0; row < _KeyScannerProps::matrix_rows; row++) {
+    matrix_state_[row].previous = matrix_state_[row].current;
+    }
+
   }
 
   uint8_t pressedKeyswitchCount() {
