@@ -20,7 +20,7 @@ sys.path.append('_sphinx')
 # -- Project information -----------------------------------------------------
 
 project = 'Kaleidoscope'
-copyright = '2023, Keyboardio & Friends'
+copyright = '2013-2025, Keyboardio & Friends'
 author = 'Keyboardio & Friends'
 
 
