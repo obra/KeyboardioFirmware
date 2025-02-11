@@ -344,6 +344,29 @@ void BLEBluefruit::pairing_complete_cb(uint16_t conn_handle, uint8_t auth_status
 void BLEBluefruit::disconnect_cb(uint16_t conn_handle, uint8_t reason) {
   DEBUG_BLE_MSG("Disconnected, reason = 0x", reason, HEX);
 
+  // Error 0x516 indicates advertising failed - this can happen during rapid state changes
+  // We track consecutive failures to prevent getting stuck in a retry loop
+  static uint8_t failure_count = 0;
+  static uint32_t last_failure_time = 0;
+  
+  if (reason == 0x516) {
+    DEBUG_BLE_MSG("Nordic error 0x516: Advertising procedure failed");
+    
+    // Reset failure count if more than 5 seconds have passed
+    uint32_t now = millis();
+    if ((now - last_failure_time) > 5000) {
+      failure_count = 0;
+    }
+    last_failure_time = now;
+    
+    if (++failure_count >= 3) {
+      DEBUG_BLE_MSG("Multiple advertising failures detected, stopping retry loop");
+      failure_count = 0;
+      Bluefruit.Advertising.stop();
+      delay(500);
+      return;
+    }
+  }
 
   switch (reason) {
   case BLE_HCI_REMOTE_USER_TERMINATED_CONNECTION:
