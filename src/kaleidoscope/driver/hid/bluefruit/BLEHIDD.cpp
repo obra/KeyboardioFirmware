@@ -84,6 +84,10 @@ bool HIDD::send_with_retries(ReportType type, uint8_t report_id, const void* dat
   do {
     BLEConnection* conn = Bluefruit.Connection(0);
     if (!conn || !conn->connected()) {
+          tone(PIN_SPEAKER, 2000, 50);
+          delay(50);
+          tone(PIN_SPEAKER, 2000, 50);
+
       return false;
     }
 
@@ -104,6 +108,7 @@ bool HIDD::send_with_retries(ReportType type, uint8_t report_id, const void* dat
       consecutive_failures = 0;
       return true;
     }
+    tone(PIN_SPEAKER, 1000, 100);
 
     consecutive_failures++;
     retry_count++;
