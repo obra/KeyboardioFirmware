@@ -40,12 +40,14 @@ BLEBas BLEBluefruit::blebas;
 BLEUartWrapper BLEBluefruit::bleuart;
 
 void BLEBluefruit::setup() {
-
+/*
   // Configure MTU and queue sizes. This should happen before 'begin'
   Bluefruit.configPrphConn(MTU_SIZE,              // MTU size
                           EVENT_LENGTH,           // Event length
                           HVN_QUEUE_SIZE,        // HVN queue size
                           WRITE_CMD_QUEUE_SIZE); // Write CMD queue size
+*/
+  Bluefruit.configPrphBandwidth(BANDWIDTH_MAX);
 
   if (!Bluefruit.begin()) {
     DEBUG_BLE_MSG("Failed to initialize Bluefruit");
