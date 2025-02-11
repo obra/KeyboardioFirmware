@@ -781,10 +781,10 @@ class Preonic : public kaleidoscope::device::Base<PreonicProps> {
       last_activity_time_  = millis();  // Update activity time on GPIOTE event
 
       // Check if the battery gauge has an alert
-      if (batteryGauge().hasAlert()) {
-        updateBatteryLevel();
-        batteryGauge().clearAlert();
-      }
+    //  if (batteryGauge().hasAlert()) {
+    //    updateBatteryLevel();
+     //   batteryGauge().clearAlert();
+     // }
     }
 
     // Check if we should enter deep sleep
