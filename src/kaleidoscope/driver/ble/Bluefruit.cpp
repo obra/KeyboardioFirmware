@@ -208,6 +208,7 @@ void BLEBluefruit::connect_cb(uint16_t conn_handle) {
     return;
   }
 
+  kaleidoscope::driver::hid::bluefruit::blehid.startReportProcessing();
   Bluefruit.Security.setMITM(true);
 
 
@@ -344,6 +345,7 @@ void BLEBluefruit::pairing_complete_cb(uint16_t conn_handle, uint8_t auth_status
 }
 
 void BLEBluefruit::disconnect_cb(uint16_t conn_handle, uint8_t reason) {
+  kaleidoscope::driver::hid::bluefruit::blehid.stopReportProcessing();
   DEBUG_BLE_MSG("Disconnected, reason = 0x", reason, HEX);
 
   // Error 0x516 indicates advertising failed - this can happen during rapid state changes
@@ -451,6 +453,9 @@ void BLEBluefruit::setSlotSpecificAddress(uint8_t slot_id) {
 }
 
 void BLEBluefruit::disconnect() {
+  // Clear HID report queue before disconnecting
+  kaleidoscope::driver::hid::bluefruit::blehid.clearReportQueue();
+
   // Disable auto-restart of advertising
   Bluefruit.Advertising.restartOnDisconnect(false);
 

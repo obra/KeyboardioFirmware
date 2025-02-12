@@ -42,6 +42,11 @@ static const uint8_t report_desc[] = {
   DESCRIPTOR_ABSOLUTE_MOUSE(HID_REPORT_ID(RID_ABS_MOUSE)),
 };
 
+// Initialize static members
+TaskHandle_t HIDD::report_task_handle_ = nullptr;
+SemaphoreHandle_t HIDD::report_semaphore_ = nullptr;
+volatile bool HIDD::task_running_ = false;
+
 HIDD::HIDD()
   : BLEHidGeneric(5, 1, 0) {}
 
@@ -60,8 +65,34 @@ err_t HIDD::begin() {
   enableMouse(true);
   setReportLen(in_lens, out_lens, NULL);
   setReportMap(report_desc, sizeof(report_desc));
+  // Initialize BLE HID service first
+  err_t status = BLEHidGeneric::begin();
+  if (status != ERROR_NONE) {
+    return status;
+  }
 
-  VERIFY_STATUS(BLEHidGeneric::begin());
+  // Create semaphore for signaling new reports
+  report_semaphore_ = xSemaphoreCreateBinary();
+  if (!report_semaphore_) {
+    end();  // Clean up if semaphore creation fails
+    return NRF_ERROR_INTERNAL;
+  }
+
+  // Create task for processing reports
+  task_running_ = true;
+  BaseType_t task_created = xTaskCreate(
+    processReportQueue_,
+    "HID_Reports",
+    configMINIMAL_STACK_SIZE * 2,
+    this,
+    2,  // Priority - higher than main loop, lower than BLE stack
+    &report_task_handle_
+  );
+
+  if (task_created != pdPASS) {
+    end();  // Clean up if task creation fails
+    return NRF_ERROR_INTERNAL;
+  }
 
   return ERROR_NONE;
 }
@@ -71,67 +102,156 @@ void HIDD::setLEDcb(BLECharacteristic::write_cb_t fp) {
   _chr_boot_keyboard_output->setWriteCallback(fp);
 }
 
-// Retry configuration
-static constexpr uint8_t MAX_RETRIES = 6;
-static constexpr uint32_t RETRY_DELAY_MS = 10;
-
-// Track consecutive failures across all senders
-static uint16_t consecutive_failures = 0;
-
-bool HIDD::send_with_retries(ReportType type, uint8_t report_id, const void* data, uint8_t length) {
-  uint8_t retry_count = 0;
+void HIDD::end() {
+  task_running_ = false;
   
-  do {
-    BLEConnection* conn = Bluefruit.Connection(0);
-    if (!conn || !conn->connected()) {
-          tone(PIN_SPEAKER, 2000, 50);
-          delay(50);
-          tone(PIN_SPEAKER, 2000, 50);
-
-      return false;
-    }
-
-    bool success;
-    switch (type) {
-      case ReportType::BootKeyboard:
-        success = BLEHidGeneric::bootKeyboardReport(data, length);
-        break;
-      case ReportType::BootMouse:
-        success = BLEHidGeneric::bootMouseReport(data, length);
-        break;
-      case ReportType::Input:
-        success = BLEHidGeneric::inputReport(report_id, data, length);
-        break;
-    }
-
-    if (success) {
-      consecutive_failures = 0;
-      return true;
-    }
-    tone(PIN_SPEAKER, 1000, 100);
-
-    consecutive_failures++;
-    retry_count++;
-    
-    if (retry_count < MAX_RETRIES) {
-      delay(RETRY_DELAY_MS);
-    }
-    
-  } while (retry_count < MAX_RETRIES);
+  // Signal task to exit if it's waiting
+  if (report_semaphore_) {
+    xSemaphoreGive(report_semaphore_);
+  }
   
+  // Wait for task to finish (with timeout)
+  if (report_task_handle_) {
+    for (int i = 0; i < 10 && eTaskGetState(report_task_handle_) != eDeleted; i++) {
+      delay(10);
+    }
+    report_task_handle_ = nullptr;
+  }
+
+  if (report_semaphore_) {
+    vSemaphoreDelete(report_semaphore_);
+    report_semaphore_ = nullptr;
+  }
+
+  clearReportQueue();
+}
+
+void HIDD::startReportProcessing() {
+  if (!task_running_) {
+    task_running_ = true;
+    xSemaphoreGive(report_semaphore_);  // Wake up task if it's waiting
+  }
+}
+
+void HIDD::stopReportProcessing() {
+  task_running_ = false;
+}
+
+void HIDD::clearReportQueue() {
+  while (!report_queue_.isEmpty()) {
+    report_queue_.pop();
+  }
+}
+
+bool HIDD::processNextReport_() {
+  if (report_queue_.isEmpty()) {
+    return true;
+  }
+
+  // Get a copy of the report
+  QueuedReport report = report_queue_.peek();
+  
+  // Check connection before attempting send
+  BLEConnection* conn = Bluefruit.Connection(0);
+  if (!conn || !conn->connected()) {
+    return false;
+  }
+
+  bool success = false;
+  switch (report.type) {
+    case ReportType::BootKeyboard:
+      success = BLEHidGeneric::bootKeyboardReport(report.data, report.length);
+      break;
+    case ReportType::BootMouse:
+      success = BLEHidGeneric::bootMouseReport(report.data, report.length);
+      break;
+    case ReportType::Input:
+      success = BLEHidGeneric::inputReport(report.report_id, report.data, report.length);
+      break;
+  }
+
+  if (success) {
+    report_queue_.pop();
+    return true;
+  }
+
+  // Update the retries count in the queue
+  if (report.retries_left > 0) {
+    report.retries_left--;
+    // If we're out of retries, remove the report
+    if (report.retries_left == 0) {
+      report_queue_.pop();
+    }
+  }
+
   return false;
 }
 
+void HIDD::processReportQueue_(void* pvParameters) {
+  HIDD* hidd = static_cast<HIDD*>(pvParameters);
+  uint8_t consecutive_failures = 0;
+  
+  while (true) {  // Task runs forever, controlled by task_running_ flag
+    if (!hidd->task_running_) {
+      vTaskDelay(pdMS_TO_TICKS(100));  // Sleep when not active
+      continue;
+    }
+
+    if (xSemaphoreTake(hidd->report_semaphore_, pdMS_TO_TICKS(10)) == pdTRUE) {
+      while (!hidd->report_queue_.isEmpty()) {
+        if (!hidd->processNextReport_()) {
+          // Failed to send, apply backoff
+          consecutive_failures++;
+          uint32_t delay = calculateBackoffDelay_(consecutive_failures);
+          vTaskDelay(pdMS_TO_TICKS(delay));
+          break;
+        } else {
+          consecutive_failures = 0;
+        }
+      }
+    }
+  }
+
+  vTaskDelete(nullptr);  // Clean exit path if we ever break out of the loop
+}
+
+bool HIDD::queueReport_(ReportType type, uint8_t report_id, const void* data, uint8_t length) {
+// If we decide we don't want to queue reports when we're not yet processing them,
+// we can just return false here. 
+// if (!task_running_) return false;
+  
+  if (report_queue_.isFull()) {
+    // In case of overflow, try to make space by removing oldest report
+    if (report_queue_.size() > 1) {  // Keep at least one report
+      report_queue_.pop();
+    } else {
+      return false;
+    }
+  }
+
+  QueuedReport report;
+  report.type = type;
+  report.report_id = report_id;
+  memcpy(report.data, data, length);
+  report.length = length;
+  report.retries_left = MAX_RETRIES;
+
+  report_queue_.push(report);
+  xSemaphoreGive(report_semaphore_);
+  
+  return true;
+}
+
 bool HIDD::sendBootKeyboardReport(const void* data, uint8_t length) {
-  return send_with_retries(ReportType::BootKeyboard, 0, data, length);
+  return queueReport_(ReportType::BootKeyboard, 0, data, length);
 }
 
 bool HIDD::sendBootMouseReport(const void* data, uint8_t length) {
-  return send_with_retries(ReportType::BootMouse, 0, data, length);
+  return queueReport_(ReportType::BootMouse, 0, data, length);
 }
 
 bool HIDD::sendInputReport(uint8_t report_id, const void* data, uint8_t length) {
-  return send_with_retries(ReportType::Input, report_id, data, length);
+  return queueReport_(ReportType::Input, report_id, data, length);
 }
 
 
