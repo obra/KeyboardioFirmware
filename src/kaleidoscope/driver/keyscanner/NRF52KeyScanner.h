@@ -22,6 +22,7 @@
 
 #pragma once
 
+#ifdef ARDUINO_ARCH_NRF52
 #include "kaleidoscope/driver/keyscanner/Base.h"
 #include "kaleidoscope/keyswitch_state.h"
 #include "kaleidoscope/utils/QueueArray.h"
@@ -297,3 +298,5 @@ uint32_t NRF52KeyScanner<_Props>::next_scan_at_ = 0;
 } // namespace keyscanner
 } // namespace driver
 } // namespace kaleidoscope
+
+#endif // ARDUINO_ARCH_NRF52

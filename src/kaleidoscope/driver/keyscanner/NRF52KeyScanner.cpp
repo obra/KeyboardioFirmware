@@ -20,6 +20,8 @@
  * this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
+#ifdef ARDUINO_ARCH_NRF52
+
 #include "NRF52KeyScanner.h"
 
 namespace kaleidoscope {
@@ -44,3 +46,5 @@ void TIMER1_IRQHandler(void) {
   }
 }
 }
+
+#endif // ARDUINO_ARCH_NRF52
