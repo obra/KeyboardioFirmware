@@ -43,6 +43,7 @@
 #include "kaleidoscope/driver/storage/None.h"     // for None
 #include "kaleidoscope/driver/ble/None.h"         // for None
 
+#include "kaleidoscope/driver/battery_charger/None.h"  // for None
 #include "kaleidoscope/driver/battery_gauge/None.h"  // for None
 #include "kaleidoscope/driver/speaker/Base.h"        // for BaseProps
 #include "kaleidoscope/driver/speaker/None.h"        // for None
@@ -89,6 +90,8 @@ struct BaseProps {
   typedef kaleidoscope::driver::ble::None BLE;
   typedef kaleidoscope::driver::battery_gauge::BaseProps BatteryGaugeProps;
   typedef kaleidoscope::driver::battery_gauge::None BatteryGauge;
+  typedef kaleidoscope::driver::battery_charger::BaseProps BatteryChargerProps;
+  typedef kaleidoscope::driver::battery_charger::None BatteryCharger;
   typedef kaleidoscope::driver::speaker::BaseProps SpeakerProps;
   typedef kaleidoscope::driver::speaker::None Speaker;
   static constexpr const char *short_name            = USB_PRODUCT;
@@ -145,6 +148,8 @@ class Base {
   typedef typename _DeviceProps::BLE BLE;
   typedef typename _DeviceProps::BatteryGaugeProps BatteryGaugeProps;
   typedef typename _DeviceProps::BatteryGauge BatteryGauge;
+  typedef typename _DeviceProps::BatteryChargerProps BatteryChargerProps;
+  typedef typename _DeviceProps::BatteryCharger BatteryCharger;
   typedef typename _DeviceProps::SpeakerProps SpeakerProps;
   typedef typename _DeviceProps::Speaker Speaker;
 
@@ -217,6 +222,13 @@ class Base {
    */
   BatteryGauge &batteryGauge() {
     return battery_gauge_;
+  }
+
+  /**
+   * Returns the battery charger driver
+   */
+  BatteryCharger &batteryCharger() {
+    return battery_charger_;
   }
 
   /**
@@ -480,7 +492,7 @@ class Base {
     key_scanner_.setup();
     led_driver_.setup();
     speaker_.setup();
-        // Battery gauge comes before BLE because BLE reports battery level
+    battery_charger_.setup();
     battery_gauge_.setup();
   }
 
@@ -610,6 +622,7 @@ class Base {
   uint8_t host_connection_mode_;
   uint8_t primary_host_connection_mode_;
   BatteryGauge battery_gauge_;
+  BatteryCharger battery_charger_;
   Speaker speaker_;
 };
 
