@@ -162,7 +162,7 @@ class NRF52KeyScanner : public Base<_Props>, public TimerHandlerInterface {
     // Configure hardware timer for scanning
     NRF_TIMER1->MODE = TIMER_MODE_MODE_Timer;  // Set timer mode
     NRF_TIMER1->BITMODE = TIMER_BITMODE_BITMODE_32Bit;  // 32-bit timer
-    NRF_TIMER1->PRESCALER = 4;  // 1 MHz from 16 MHz clock
+    NRF_TIMER1->PRESCALER = 5;  // 1 MHz, to get our interval in microseconds
     NRF_TIMER1->CC[0] = _Props::keyscan_interval_micros;  // Set compare value
     NRF_TIMER1->SHORTS = TIMER_SHORTS_COMPARE0_CLEAR_Msk;  // Auto clear on compare match
     NRF_TIMER1->INTENSET = TIMER_INTENSET_COMPARE0_Msk;  // Enable compare interrupt
