@@ -221,12 +221,8 @@ bool HIDD::queueReport_(ReportType type, uint8_t report_id, const void* data, ui
 // if (!task_running_) return false;
   
   if (report_queue_.isFull()) {
-    // In case of overflow, try to make space by removing oldest report
-    if (report_queue_.size() > 1) {  // Keep at least one report
-      report_queue_.pop();
-    } else {
-      return false;
-    }
+    // Make space by removing oldest report
+    report_queue_.pop();
   }
 
   QueuedReport report;
