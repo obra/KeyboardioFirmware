@@ -60,7 +60,7 @@ err_t HIDD::begin() {
   };
   uint16_t out_lens[] = {1};
 
-  setHidInfo(BLE_HID_BCD, 0, BLE_HID_INFO_NORMALLY_CONNECTABLE | BLE_HID_INFO_NORMALLY_CONNECTABLE);
+  setHidInfo(BLE_HID_BCD, 0, BLE_HID_INFO_REMOTE_WAKE | BLE_HID_INFO_NORMALLY_CONNECTABLE);
   enableKeyboard(true);
   enableMouse(true);
   setReportLen(in_lens, out_lens, NULL);
