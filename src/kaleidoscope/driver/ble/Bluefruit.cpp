@@ -411,6 +411,7 @@ void BLEBluefruit::startConnectableAdvertising() {
 }
 
 void BLEBluefruit::printBLEAddress(const char *prefix, const uint8_t *addr) {
+#if DEBUG_BLE
   Serial.print(prefix);
 
   for (int i = 5; i >= 0; i--) {
@@ -418,6 +419,7 @@ void BLEBluefruit::printBLEAddress(const char *prefix, const uint8_t *addr) {
     if (i > 0) Serial.print(":");
   }
   Serial.println("");
+#endif // DEBUG_BLE
 }
 
 void BLEBluefruit::configureAdvertising() {
