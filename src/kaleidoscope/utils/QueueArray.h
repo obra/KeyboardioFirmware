@@ -30,49 +30,64 @@ class QueueArray {
   QueueArray() : head_(0), tail_(0), count_(0) {}
 
   bool push(const T& item) {
+    noInterrupts();
     if (count_ >= SIZE) {
+      interrupts();
       return false;
     }
-    
     buffer_[tail_] = item;
     tail_ = (tail_ + 1) % SIZE;
     count_++;
+    interrupts();
     return true;
   }
 
   T pop() {
+    noInterrupts();
     if (count_ == 0) {
+      interrupts();
       return T();
     }
-    
     T item = buffer_[head_];
     head_ = (head_ + 1) % SIZE;
     count_--;
+    interrupts();
     return item;
   }
 
   T peek() const {
-    if (count_ == 0) return T();
-    return buffer_[head_];
+    noInterrupts();
+    T item = count_ == 0 ? T() : buffer_[head_];
+    interrupts();
+    return item;
   }
 
   bool isEmpty() const {
-    return count_ == 0;
+    noInterrupts();
+    bool empty = (count_ == 0);
+    interrupts();
+    return empty;
   }
 
   bool isFull() const {
-    return count_ >= SIZE;
+    noInterrupts();
+    bool full = (count_ >= SIZE);
+    interrupts();
+    return full;
   }
 
   size_t size() const {
-    return count_;
+    noInterrupts();
+    size_t count = count_;
+    interrupts();
+    return count;
   }
 
  private:
   T buffer_[SIZE];
-  size_t head_;
-  size_t tail_;
-  size_t count_;
+  volatile size_t head_;
+  volatile size_t tail_;
+  volatile size_t count_;
 };
 
 } // namespace kaleidoscope
