@@ -22,64 +22,91 @@
 
 #pragma once
 
+#ifdef ARDUINO_ARCH_NRF52
+#include <FreeRTOS.h>
+#include <task.h>
+#endif
+
 namespace kaleidoscope {
+
+// Platform-specific critical section macros
+#ifdef ARDUINO_ARCH_NRF52
+  #define CRITICAL_SECTION_START()  taskENTER_CRITICAL()
+  #define CRITICAL_SECTION_END()    taskEXIT_CRITICAL()
+#else
+  #define CRITICAL_SECTION_START()  noInterrupts()
+  #define CRITICAL_SECTION_END()    interrupts()
+#endif
 
 template<typename T, size_t SIZE = 32>
 class QueueArray {
  public:
-  QueueArray() : head_(0), tail_(0), count_(0) {}
+  QueueArray() : head_(0), tail_(0) {}
 
   bool push(const T& item) {
-    noInterrupts();
-    if (count_ >= SIZE) {
-      interrupts();
+    CRITICAL_SECTION_START();
+
+    size_t next_tail = (tail_ + 1) % SIZE;
+    if (next_tail == head_) {  // Full check
+      CRITICAL_SECTION_END();
       return false;
     }
+
     buffer_[tail_] = item;
-    tail_ = (tail_ + 1) % SIZE;
-    count_++;
-    interrupts();
+    tail_ = next_tail;
+
+    CRITICAL_SECTION_END();
     return true;
   }
 
   T pop() {
-    noInterrupts();
-    if (count_ == 0) {
-      interrupts();
+    CRITICAL_SECTION_START();
+
+    if (head_ == tail_) {  // Empty check
+      CRITICAL_SECTION_END();
       return T();
     }
+
     T item = buffer_[head_];
     head_ = (head_ + 1) % SIZE;
-    count_--;
-    interrupts();
+
+    CRITICAL_SECTION_END();
     return item;
   }
-
   T peek() const {
-    noInterrupts();
-    T item = count_ == 0 ? T() : buffer_[head_];
-    interrupts();
+    CRITICAL_SECTION_START();
+    
+    if (head_ == tail_) {  // Empty check
+      CRITICAL_SECTION_END();
+      return T();
+    }
+
+    T item = buffer_[head_];
+    
+    CRITICAL_SECTION_END();
     return item;
   }
-
+  
   bool isEmpty() const {
-    noInterrupts();
-    bool empty = (count_ == 0);
-    interrupts();
+    CRITICAL_SECTION_START();
+    bool empty = (head_ == tail_);
+    CRITICAL_SECTION_END();
     return empty;
   }
 
   bool isFull() const {
-    noInterrupts();
-    bool full = (count_ >= SIZE);
-    interrupts();
+    CRITICAL_SECTION_START();
+    bool full = ((tail_ + 1) % SIZE) == head_;
+    CRITICAL_SECTION_END();
     return full;
   }
 
   size_t size() const {
-    noInterrupts();
-    size_t count = count_;
-    interrupts();
+    CRITICAL_SECTION_START();
+    size_t t = tail_;
+    size_t h = head_;
+    size_t count = t >= h ? t - h : SIZE - (h - t);
+    CRITICAL_SECTION_END();
     return count;
   }
 
@@ -87,7 +114,9 @@ class QueueArray {
   T buffer_[SIZE];
   volatile size_t head_;
   volatile size_t tail_;
-  volatile size_t count_;
 };
+
+#undef CRITICAL_SECTION_START
+#undef CRITICAL_SECTION_END
 
 } // namespace kaleidoscope
