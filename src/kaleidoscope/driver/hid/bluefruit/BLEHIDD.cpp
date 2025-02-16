@@ -48,7 +48,7 @@ SemaphoreHandle_t HIDD::report_semaphore_ = nullptr;
 volatile bool HIDD::task_running_ = false;
 
 HIDD::HIDD()
-  : BLEHidGeneric(5, 1, 0) {}
+  : BLEHidGeneric(5, 1, 0), queue_handle_(nullptr) {}
 
 err_t HIDD::begin() {
   uint16_t in_lens[] = {
@@ -65,10 +65,20 @@ err_t HIDD::begin() {
   enableMouse(true);
   setReportLen(in_lens, out_lens, NULL);
   setReportMap(report_desc, sizeof(report_desc));
+  
   // Initialize BLE HID service first
   err_t status = BLEHidGeneric::begin();
   if (status != ERROR_NONE) {
     return status;
+  }
+
+  // Create queue for reports
+  queue_handle_ = xQueueCreateStatic(QUEUE_SIZE,
+                                   sizeof(QueuedReport),
+                                   queue_storage_,
+                                   &queue_buffer_);
+  if (!queue_handle_) {
+    return NRF_ERROR_INTERNAL;
   }
 
   // Create semaphore for signaling new reports
@@ -123,7 +133,7 @@ void HIDD::end() {
     report_semaphore_ = nullptr;
   }
 
-  clearReportQueue();
+  queue_handle_ = nullptr;  // Static queue doesn't need deletion
 }
 
 void HIDD::startReportProcessing() {
@@ -138,22 +148,52 @@ void HIDD::stopReportProcessing() {
 }
 
 void HIDD::clearReportQueue() {
-  while (!report_queue_.isEmpty()) {
-    report_queue_.pop();
+  if (queue_handle_) {
+    xQueueReset(queue_handle_);
   }
 }
 
-bool HIDD::processNextReport_() {
-  if (report_queue_.isEmpty()) {
-    return true;
+void HIDD::processReportQueue_(void* pvParameters) {
+  HIDD* hidd = static_cast<HIDD*>(pvParameters);
+  
+  while (true) {  // Task runs forever, controlled by task_running_ flag
+    if (!hidd->task_running_) {
+      vTaskDelay(pdMS_TO_TICKS(100));  // Sleep when not active
+      continue;
+    }
+
+    if (xSemaphoreTake(hidd->report_semaphore_, pdMS_TO_TICKS(10)) == pdTRUE) {
+      while (uxQueueMessagesWaiting(hidd->queue_handle_) > 0) {
+        if (!hidd->processNextReport_()) {
+          // Failed to send - wait a bit before next retry
+          vTaskDelay(pdMS_TO_TICKS(RETRY_INTERVAL_MS));
+        }
+      }
+    }
   }
 
-  // Get a copy of the report
-  QueuedReport report = report_queue_.peek();
-  
+  vTaskDelete(nullptr);  // Clean exit path if we ever break out of the loop
+}
+
+bool HIDD::processNextReport_() {
+  QueuedReport report;
+  // Take the report out of the queue before processing
+  if (xQueueReceive(queue_handle_, &report, 0) != pdTRUE) {
+    return true;  // Queue is empty
+  }
+
   // Check connection before attempting send
   BLEConnection* conn = Bluefruit.Connection(0);
   if (!conn || !conn->connected()) {
+    // Connection lost - if we still have retries, put it back in queue
+    if (report.retries_left > 0) {
+      report.retries_left--;
+      BaseType_t result = xQueueSendToFront(queue_handle_, &report, 0);
+      if (result != pdTRUE) {
+        // Failed to requeue, report is lost
+        return false;
+      }
+    }
     return false;
   }
 
@@ -170,61 +210,32 @@ bool HIDD::processNextReport_() {
       break;
   }
 
-  if (success) {
-    report_queue_.pop();
-    return true;
-  }
-
-  // Update the retries count in the queue
-  if (report.retries_left > 0) {
+  if (!success && report.retries_left > 0) {
+    // Send failed but we have retries left
     report.retries_left--;
-    // If we're out of retries, remove the report
-    if (report.retries_left == 0) {
-      report_queue_.pop();
+    // Put back at front of queue to maintain order
+    BaseType_t result = xQueueSendToFront(queue_handle_, &report, 0);
+    if (result != pdTRUE) {
+      // Failed to requeue, report is lost
+      return false;
     }
+    return false;  // Signal failure so we'll wait before next retry
   }
 
-  return false;
-}
-
-void HIDD::processReportQueue_(void* pvParameters) {
-  HIDD* hidd = static_cast<HIDD*>(pvParameters);
-  uint8_t consecutive_failures = 0;
-  
-  while (true) {  // Task runs forever, controlled by task_running_ flag
-    if (!hidd->task_running_) {
-      vTaskDelay(pdMS_TO_TICKS(100));  // Sleep when not active
-      continue;
-    }
-
-    if (xSemaphoreTake(hidd->report_semaphore_, pdMS_TO_TICKS(10)) == pdTRUE) {
-      while (!hidd->report_queue_.isEmpty()) {
-        if (!hidd->processNextReport_()) {
-          // Failed to send, apply backoff
-          consecutive_failures++;
-          uint32_t delay = calculateBackoffDelay_(consecutive_failures);
-          vTaskDelay(pdMS_TO_TICKS(delay));
-          break;
-        } else {
-          consecutive_failures = 0;
-        }
-      }
-    }
-  }
-
-  vTaskDelete(nullptr);  // Clean exit path if we ever break out of the loop
+  // Either succeeded or out of retries
+  return success;
 }
 
 bool HIDD::queueReport_(ReportType type, uint8_t report_id, const void* data, uint8_t length) {
-// If we decide we don't want to queue reports when we're not yet processing them,
-// we can just return false here. 
-// if (!task_running_) return false;
-  
-  if (report_queue_.isFull()) {
-    // Make space by removing oldest report
-    report_queue_.pop();
+  if (!queue_handle_) return false;
+
+  // If queue is full, remove oldest report to make space (FIFO behavior)
+  if (uxQueueSpacesAvailable(queue_handle_) == 0) {
+    QueuedReport dummy;
+    xQueueReceive(queue_handle_, &dummy, 0);  // Make space by removing oldest report
   }
 
+  // Prepare the report structure for queuing
   QueuedReport report;
   report.type = type;
   report.report_id = report_id;
@@ -232,10 +243,27 @@ bool HIDD::queueReport_(ReportType type, uint8_t report_id, const void* data, ui
   report.length = length;
   report.retries_left = MAX_RETRIES;
 
-  report_queue_.push(report);
-  xSemaphoreGive(report_semaphore_);
+  // Used to track if any operation wakes a higher priority task
+  // This is crucial for maintaining real-time responsiveness
+  BaseType_t higher_priority_task_woken = pdFALSE;
   
-  return true;
+  // Use ISR-safe version of queue send as this might be called from an interrupt
+  // context (e.g., during key scanning or BLE events)
+  BaseType_t success = xQueueSendFromISR(queue_handle_, &report, &higher_priority_task_woken);
+  
+  if (success == pdTRUE) {
+    // Signal the processing task that new data is available
+    // Using ISR-safe version as we might be in an interrupt context
+    xSemaphoreGiveFromISR(report_semaphore_, &higher_priority_task_woken);
+
+    // If either the queue send or semaphore give caused a higher priority task to wake,
+    // we need to trigger an immediate context switch. This ensures real-time response
+    // by switching to higher priority tasks (like BLE stack operations) immediately.
+    // Note: This only yields if we're actually in an ISR and a task was woken
+    portYIELD_FROM_ISR(higher_priority_task_woken);
+  }
+  
+  return success == pdTRUE;
 }
 
 bool HIDD::sendBootKeyboardReport(const void* data, uint8_t length) {
@@ -249,7 +277,6 @@ bool HIDD::sendBootMouseReport(const void* data, uint8_t length) {
 bool HIDD::sendInputReport(uint8_t report_id, const void* data, uint8_t length) {
   return queueReport_(ReportType::Input, report_id, data, length);
 }
-
 
 HIDD blehid;
 

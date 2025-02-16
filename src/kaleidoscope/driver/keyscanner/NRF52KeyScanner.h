@@ -25,7 +25,8 @@
 #ifdef ARDUINO_ARCH_NRF52
 #include "kaleidoscope/driver/keyscanner/Base.h"
 #include "kaleidoscope/keyswitch_state.h"
-#include "kaleidoscope/utils/QueueArray.h"
+#include "FreeRTOS.h"
+#include "queue.h"
 #include "Arduino.h"
 #include "nrf_timer.h"
 
@@ -71,11 +72,18 @@ class NRF52KeyScanner : public Base<_Props>, public TimerHandlerInterface {
  private:
   typedef NRF52KeyScanner<_Props> ThisType;
 
+  // Packed event structure to minimize queue memory usage
   struct Event {
     uint8_t row : 4;
     uint8_t col : 4;
     bool pressed : 1;
   };
+
+  // Static queue storage and control structures
+  static constexpr size_t EVENT_QUEUE_SIZE = 64;
+  static StaticQueue_t event_queue_buffer_;
+  static uint8_t event_queue_storage_[EVENT_QUEUE_SIZE * sizeof(Event)];
+  static QueueHandle_t event_queue_handle_;
 
  protected:
   struct row_state_t {
@@ -92,10 +100,19 @@ class NRF52KeyScanner : public Base<_Props>, public TimerHandlerInterface {
   /// @return true if event was queued, false if queue was full
   bool queueKeyEvent(uint8_t row, uint8_t col, bool state) {
     Event event = {row, col, state};
-    if (!event_buffer_.push(event)) {
-      return false;
-    }
-    return true;
+    BaseType_t higher_priority_task_woken = pdFALSE;
+    
+    // Use ISR version since this might be called from timer interrupt
+    BaseType_t success = xQueueSendFromISR(
+      event_queue_handle_,
+      &event,
+      &higher_priority_task_woken
+    );
+    
+    // Handle potential task switch if needed
+    portYIELD_FROM_ISR(higher_priority_task_woken);
+    
+    return success == pdTRUE;
   }
 
   /// @brief Directly set the matrix state for a key
@@ -151,6 +168,15 @@ class NRF52KeyScanner : public Base<_Props>, public TimerHandlerInterface {
     // Store this instance as the active scanner
     active_scanner_ = this;
 
+    // Create the event queue
+    event_queue_handle_ = xQueueCreateStatic(
+      EVENT_QUEUE_SIZE,
+      sizeof(Event),
+      event_queue_storage_,
+      &event_queue_buffer_
+    );
+
+    // Configure GPIO
     for (uint8_t i = 0; i < _Props::matrix_rows; i++) {
       pinMode(_Props::matrix_row_pins[i], OUTPUT);
       digitalWrite(_Props::matrix_row_pins[i], HIGH);
@@ -186,10 +212,11 @@ class NRF52KeyScanner : public Base<_Props>, public TimerHandlerInterface {
 
   /// @brief Process any buffered events and update matrix state
   void scanMatrix() {
+    Event event;
+    
     // Process any buffered events
-    while (!event_buffer_.isEmpty()) {
-      Event event = event_buffer_.pop();
-      // Always update matrix state with latest event
+    while (xQueueReceive(event_queue_handle_, &event, 0) == pdTRUE) {
+      // Update matrix state with latest event
       applyQueuedEvent(event);
     }
     
@@ -215,7 +242,7 @@ class NRF52KeyScanner : public Base<_Props>, public TimerHandlerInterface {
   /// @brief Check if there are any events queued in the buffer
   /// @return true if there are events waiting to be processed
   bool hasQueuedEvents() const {
-    return !event_buffer_.isEmpty();
+    return uxQueueMessagesWaiting(event_queue_handle_) > 0;
   }
 
   uint8_t previousPressedKeyswitchCount() {
@@ -275,7 +302,6 @@ class NRF52KeyScanner : public Base<_Props>, public TimerHandlerInterface {
  private:  
   static constexpr uint8_t DEBOUNCE_THRESHOLD = 3;
   static uint8_t debounce_counters_[_Props::matrix_rows][_Props::matrix_columns];
-  static QueueArray<Event, 64> event_buffer_;
 
   static void gpio_handler(uint32_t pin) {
     // Wake-on-key handler
@@ -287,7 +313,13 @@ template<typename _Props>
 uint8_t NRF52KeyScanner<_Props>::debounce_counters_[_Props::matrix_rows][_Props::matrix_columns] = {0};
 
 template<typename _Props>
-QueueArray<typename NRF52KeyScanner<_Props>::Event, 64>   NRF52KeyScanner<_Props>::event_buffer_;
+StaticQueue_t NRF52KeyScanner<_Props>::event_queue_buffer_;
+
+template<typename _Props>
+uint8_t NRF52KeyScanner<_Props>::event_queue_storage_[EVENT_QUEUE_SIZE * sizeof(typename NRF52KeyScanner<_Props>::Event)];
+
+template<typename _Props>
+QueueHandle_t NRF52KeyScanner<_Props>::event_queue_handle_ = nullptr;
 
 template<typename _Props>
 typename NRF52KeyScanner<_Props>::row_state_t NRF52KeyScanner<_Props>::matrix_state_[_Props::matrix_rows];

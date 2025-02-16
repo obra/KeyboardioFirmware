@@ -25,8 +25,8 @@
 #ifdef ARDUINO_ARCH_NRF52
 
 #include <bluefruit.h>
-#include "kaleidoscope/utils/QueueArray.h"
 #include "FreeRTOS.h"
+#include "queue.h"
 #include "task.h"
 #include "semphr.h"
 
@@ -113,11 +113,15 @@ class HIDD : public BLEHidGeneric {
 
  private:
   static constexpr size_t QUEUE_SIZE = 64;
-  static constexpr uint8_t MAX_RETRIES = 10;
-  static constexpr uint32_t BASE_RETRY_DELAY_MS = 2;
-  static constexpr uint32_t MAX_RETRY_DELAY_MS = 100;
+  static constexpr uint8_t MAX_RETRIES = 20;  // At 10ms intervals = up to 200ms of retries
+  static constexpr uint8_t RETRY_INTERVAL_MS = 10;  // Time between retries
 
-  QueueArray<QueuedReport, QUEUE_SIZE> report_queue_;
+  // Queue storage and handle
+  StaticQueue_t queue_buffer_;
+  uint8_t queue_storage_[QUEUE_SIZE * sizeof(QueuedReport)];
+  QueueHandle_t queue_handle_;
+
+  // Task management
   static TaskHandle_t report_task_handle_;
   static SemaphoreHandle_t report_semaphore_;
   static volatile bool task_running_;
@@ -144,16 +148,6 @@ class HIDD : public BLEHidGeneric {
    * @return true if report was successfully queued
    */
   bool queueReport_(ReportType type, uint8_t report_id, const void* data, uint8_t length);
-
-  /**
-   * Calculate delay for exponential backoff
-   * @param retry_count Number of consecutive failed attempts
-   * @return Delay in milliseconds, capped at MAX_RETRY_DELAY_MS
-   */
-  static uint32_t calculateBackoffDelay_(uint8_t retry_count) {
-    uint32_t delay = BASE_RETRY_DELAY_MS * (1 << retry_count);
-    return min(delay, MAX_RETRY_DELAY_MS);
-  }
 };
 
 extern HIDD blehid;
