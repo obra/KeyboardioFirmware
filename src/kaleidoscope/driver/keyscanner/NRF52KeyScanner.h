@@ -291,8 +291,6 @@ class NRF52KeyScanner : public Base<_Props>, public TimerHandlerInterface {
             }
             debounce_counters_[row][col] = 0;
           }
-        } else {
-          debounce_counters_[row][col] = 0;
         }
       }
       digitalWrite(_Props::matrix_row_pins[row], HIGH);
