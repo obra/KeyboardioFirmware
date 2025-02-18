@@ -92,11 +92,21 @@ EventHandlerResult ColormapOverlay::onFocusEvent(const char *input) {
     return EventHandlerResult::OK;
 
   if (::Focus.isEOL()) {
-    // TODO: loop over all layers and keys, check if a color overlay is specified and return either overlay index or -1
+    for (uint8_t layer = 0; layer < defaultcolormap::colormap_layers; layer++) {
+      for (int8_t i = 0; i < Runtime.device().numKeys(); i++) {
+        for (uint8_t overlay_index{0}; overlay_index < overlay_count_; ++overlay_index) {
+          Overlay overlay = overlays_[overlay_index];
+          if ((overlay.addr == k) && (overlay.layer == top_layer)) {
+            ::Focus.send(overlay.palette_index);
+          }
+        }
+        ::Focus.send(-1);
+      }
+    }
     return EventHandlerResult::EVENT_CONSUMED;
   }
 
-  // TODO: loop over all layers and keys, for each read specified index and when it's >=0 store overlay in EEPROM
+  // TODO: read all input, loop over all layers and keys, for each read specified index and when it's >=0 store overlay in EEPROM
   Runtime.storage().commit();
 
   ::LEDControl.refreshAll();
