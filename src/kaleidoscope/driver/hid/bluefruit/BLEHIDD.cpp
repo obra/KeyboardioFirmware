@@ -162,11 +162,11 @@ void HIDD::processReportQueue_(void* pvParameters) {
       continue;
     }
 
-    if (xSemaphoreTake(hidd->report_semaphore_, pdMS_TO_TICKS(10)) == pdTRUE) {
+    if (xSemaphoreTake(hidd->report_semaphore_, pdMS_TO_TICKS(KEYSTROKE_INTERVAL_MS)) == pdTRUE) {
       while (uxQueueMessagesWaiting(hidd->queue_handle_) > 0) {
         if (!hidd->processNextReport_()) {
           // Failed to send - wait a bit before next retry
-          vTaskDelay(pdMS_TO_TICKS(RETRY_INTERVAL_MS));
+          vTaskDelay(pdMS_TO_TICKS(RETRY_DELAY_MS));
         }
       }
     }

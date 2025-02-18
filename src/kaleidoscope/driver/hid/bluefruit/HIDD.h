@@ -114,8 +114,8 @@ class HIDD : public BLEHidGeneric {
  private:
   static constexpr size_t QUEUE_SIZE = 64;
   static constexpr uint8_t MAX_RETRIES = 20;  // At 10ms intervals = up to 200ms of retries
-  static constexpr uint8_t RETRY_INTERVAL_MS = 10;  // Time between retries
-
+  static constexpr uint8_t RETRY_DELAY_MS = 10;  // Time between retries
+  static constexpr uint8_t KEYSTROKE_INTERVAL_MS = 5;  // Time between keystrokes
   // Queue storage and handle
   StaticQueue_t queue_buffer_;
   uint8_t queue_storage_[QUEUE_SIZE * sizeof(QueuedReport)];
