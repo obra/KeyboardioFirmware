@@ -262,25 +262,13 @@ bool HIDD::queueReport_(ReportType type, uint8_t report_id, const void* data, ui
   memcpy(report.data, data, length);
   report.length = length;
   report.retries_left = MAX_RETRIES;
-
-  // Used to track if any operation wakes a higher priority task
-  // This is crucial for maintaining real-time responsiveness
-  BaseType_t higher_priority_task_woken = pdFALSE;
   
-  // Use ISR-safe version of queue send as this might be called from an interrupt
-  // context (e.g., during key scanning or BLE events)
-  BaseType_t success = xQueueSendFromISR(queue_handle_, &report, &higher_priority_task_woken);
+  // Queue the new report
+  BaseType_t success = xQueueSend(queue_handle_, &report, 0);
   
   if (success == pdTRUE) {
     // Signal the processing task that new data is available
-    // Using ISR-safe version as we might be in an interrupt context
-    xSemaphoreGiveFromISR(report_semaphore_, &higher_priority_task_woken);
-
-    // If either the queue send or semaphore give caused a higher priority task to wake,
-    // we need to trigger an immediate context switch. This ensures real-time response
-    // by switching to higher priority tasks (like BLE stack operations) immediately.
-    // Note: This only yields if we're actually in an ISR and a task was woken
-    portYIELD_FROM_ISR(higher_priority_task_woken);
+    xSemaphoreGive(report_semaphore_);
   }
   
   return success == pdTRUE;
