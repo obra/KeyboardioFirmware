@@ -176,25 +176,16 @@ void HIDD::processReportQueue_(void* pvParameters) {
 }
 
 bool HIDD::processNextReport_() {
-  QueuedReport report;
-  // Take the report out of the queue before processing
-  if (xQueueReceive(queue_handle_, &report, 0) != pdTRUE) {
-    return true;  // Queue is empty
-  }
-
   // Check connection before attempting send
   BLEConnection* conn = Bluefruit.Connection(0);
   if (!conn || !conn->connected()) {
-    // Connection lost - if we still have retries, put it back in queue
-    if (report.retries_left > 0) {
-      report.retries_left--;
-      BaseType_t result = xQueueSendToFront(queue_handle_, &report, 0);
-      if (result != pdTRUE) {
-        // Failed to requeue, report is lost
-        return false;
-      }
-    }
-    return false;
+    return true;
+  }
+
+  QueuedReport report;
+  // Peek at the next report without removing it
+  if (xQueuePeek(queue_handle_, &report, 0) != pdTRUE) {
+    return true;  // Queue is empty
   }
 
   bool success = false;
@@ -210,29 +201,58 @@ bool HIDD::processNextReport_() {
       break;
   }
 
-  if (!success && report.retries_left > 0) {
-    // Send failed but we have retries left
+  if (success) {
+    // Only remove the item if send was successful
+    xQueueReceive(queue_handle_, &report, 0);
+    return true;
+  } else if (report.retries_left > 0) {
+    // Update retry count in place without removing the item
     report.retries_left--;
-    // Put back at front of queue to maintain order
-    BaseType_t result = xQueueSendToFront(queue_handle_, &report, 0);
-    if (result != pdTRUE) {
-      // Failed to requeue, report is lost
-      return false;
-    }
+    // Use xQueueOverwrite to safely update the item at the front of the queue
+    // This is safe because we know the item exists (we just peeked at it)
+    xQueueOverwrite(queue_handle_, &report);
     return false;  // Signal failure so we'll wait before next retry
+  } else {
+    // Out of retries, remove the failed item
+    xQueueReceive(queue_handle_, &report, 0);
+    return true;
   }
-
-  // Either succeeded or out of retries
-  return success;
 }
 
 bool HIDD::queueReport_(ReportType type, uint8_t report_id, const void* data, uint8_t length) {
   if (!queue_handle_) return false;
 
-  // If queue is full, remove oldest report to make space (FIFO behavior)
+  // Try to queue the report for 5 seconds before considering eviction
+  const TickType_t QUEUE_RETRY_TIMEOUT = pdMS_TO_TICKS(5000); // 5 seconds in ticks
+  TickType_t start_time = xTaskGetTickCount();
+  
+  // Keep trying to queue while there's no space and we haven't exceeded our timeout
+  while (uxQueueSpacesAvailable(queue_handle_) == 0) {
+    // Calculate remaining time in our retry window
+    TickType_t now = xTaskGetTickCount();
+    TickType_t elapsed = now - start_time;
+    
+    // If we've exceeded our 5-second retry window, break out to try eviction
+    if (elapsed >= QUEUE_RETRY_TIMEOUT) {
+      break;
+    }
+    
+    // Wait a short time before checking again
+    // Use shorter delays early in the retry window, longer ones later
+    TickType_t delay_time = (elapsed < pdMS_TO_TICKS(1000)) ? 
+                           pdMS_TO_TICKS(1) :  // 1ms delays in first second
+                           pdMS_TO_TICKS(10);  // 10ms delays after that
+    vTaskDelay(delay_time);
+  }
+
+  // If queue is still full after retrying, we need to evict the oldest report
   if (uxQueueSpacesAvailable(queue_handle_) == 0) {
+    // Log or track this eviction if needed
     QueuedReport dummy;
-    xQueueReceive(queue_handle_, &dummy, 0);  // Make space by removing oldest report
+    if (xQueueReceive(queue_handle_, &dummy, 0) != pdTRUE) {
+      // If we somehow failed to remove an item, we can't queue the new one
+      return false;
+    }
   }
 
   // Prepare the report structure for queuing
