@@ -112,7 +112,7 @@ class HIDD : public BLEHidGeneric {
   void stopReportProcessing();
 
  private:
-  static constexpr size_t QUEUE_SIZE = 64;
+  static constexpr size_t QUEUE_SIZE = 512; // Absurdly large queue size
   static constexpr uint8_t MAX_RETRIES = 20;  // At 10ms intervals = up to 200ms of retries
   static constexpr uint8_t RETRY_DELAY_MS = 10;  // Time between retries
   static constexpr uint8_t KEYSTROKE_INTERVAL_MS = 5;  // Time between keystrokes
