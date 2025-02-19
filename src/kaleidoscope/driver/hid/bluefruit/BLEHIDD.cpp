@@ -171,6 +171,9 @@ void HIDD::processReportQueue_(void* pvParameters) {
         if (!hidd->processNextReport_()) {
           // Failed to send - wait a bit before next retry
           vTaskDelay(pdMS_TO_TICKS(RETRY_DELAY_MS));
+          DEBUG_BLE_MSG("Failed to send report, waiting %dms before next retry", RETRY_DELAY_MS);
+        } else {
+          vTaskDelay(pdMS_TO_TICKS(KEYSTROKE_INTERVAL_MS)); 
         }
       }
     }
