@@ -82,7 +82,8 @@ enum {
   MACRO_BT_SELECT_3,  // Select slot 3
   MACRO_BT_SELECT_4,  // Select slot 4
   MACRO_BT_PAIR,      // Start pairing for selected slot
-  MACRO_BT_OFF
+  MACRO_BT_OFF,
+  MACRO_TYPING_TEST   // Typing speed test macro
 };
 
 // Define our magic combo
@@ -118,7 +119,7 @@ enum {
 KEYMAPS(
   [QWERTY] = KEYMAP
   (
-    Consumer_VolumeDecrement, Consumer_VolumeIncrement, M(MACRO_ANY), ShiftToLayer(FUN),                 Consumer_PlaySlashPause,
+    Consumer_VolumeDecrement, Consumer_VolumeIncrement, M(MACRO_TYPING_TEST), ShiftToLayer(FUN),                 Consumer_PlaySlashPause,
     Key_Backtick,   Key_1,           Key_2,           Key_3,                   Key_4,           Key_5,           Key_6,           Key_7,           Key_8,                      Key_9,           Key_0,           Key_Minus,
     Key_Tab,        Key_Q,           Key_W,           Key_E,                   Key_R,           Key_T,           Key_Y,           Key_U,           Key_I,                      Key_O,           Key_P,           Key_Backspace,
     Key_Escape,     Key_A,           Key_S,           Key_D,                   Key_F,           Key_G,           Key_H,           Key_J,           Key_K,                      Key_L,           Key_Semicolon,   Key_Quote,
@@ -346,6 +347,24 @@ static void anyKeyMacro(KeyEvent &event) {
   }
 }
 
+// Forward declarations
+void outputSlowly(const char* str);
+void runTypingTest(uint8_t scenario, uint16_t chars_per_min, uint8_t overlap_percent);
+void typingTestMacro();
+
+// Add these near the top with other constants
+static constexpr uint8_t key_pressed = IS_PRESSED | INJECTED;
+static constexpr uint8_t key_released = WAS_PRESSED | INJECTED;
+
+// Helper methods for key events
+void press(Key key) {
+  kaleidoscope::Runtime.handleKeyEvent(KeyEvent{KeyAddr::none(), key_pressed, key});
+}
+
+void release(Key key) {
+  kaleidoscope::Runtime.handleKeyEvent(KeyEvent{KeyAddr::none(), key_released, key});
+}
+
 /** macroAction dispatches keymap events that are tied to a macro
     to that macro. It takes two uint8_t parameters.
 
@@ -407,8 +426,38 @@ const macro_t *macroAction(uint8_t macro_id, KeyEvent &event) {
       kaleidoscope::Runtime.device().setHostConnectionMode(MODE_USB);
     }
     break;
+  case MACRO_TYPING_TEST:
+    if (keyToggledOn(event.state)) {
+      typingTestMacro();
+    }
+    break;
   }
   return MACRO_NONE;
+}
+
+// Helper function to output a string at a slow rate for test parameters
+void outputSlowly(const char* str) {
+  Macros.type(str);
+}
+
+
+// Main macro function that runs all test scenarios
+void typingTestMacro() {
+  // Test parameters
+  const uint16_t speeds[] = { 2500}; // chars per minute
+  const uint8_t overlaps[] = {50}; // percentage of overlap
+  
+  outputSlowly("0123456789012345678901234567890123456789\n");
+  delay(5000) ;
+  outputSlowly("0123456789012345678901234567890123456789\n");
+  return;
+  outputSlowly("Starting typing speed tests...\n");
+//// Run an extreme test with no delays
+  outputSlowly("Running no-delay test...\n");
+  for (auto i=0; i<10; i++) {
+   outputSlowly("0123456789012345678901234567890123456789\n");
+    }
+  outputSlowly("All tests completed.\n");
 }
 
 void setup() {
