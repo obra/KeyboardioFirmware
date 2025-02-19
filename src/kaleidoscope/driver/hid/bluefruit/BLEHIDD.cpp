@@ -163,7 +163,10 @@ void HIDD::processReportQueue_(void* pvParameters) {
       continue;
     }
 
-    if (xSemaphoreTake(hidd->report_semaphore_, pdMS_TO_TICKS(KEYSTROKE_INTERVAL_MS)) == pdTRUE) {
+    // When we are waiting for new reports to send, wait as long as we can 
+    // before the next iteration of the loop to use as little power as possible
+    if (xSemaphoreTake(hidd->report_semaphore_, portMAX_DELAY) == pdTRUE) {
+
       while (uxQueueMessagesWaiting(hidd->queue_handle_) > 0) {
         if (!hidd->processNextReport_()) {
           // Failed to send - wait a bit before next retry
