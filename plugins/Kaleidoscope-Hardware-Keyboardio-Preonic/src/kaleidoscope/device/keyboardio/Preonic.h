@@ -790,7 +790,10 @@ class Preonic : public kaleidoscope::device::Base<PreonicProps> {
     // Check if we should enter deep sleep
     // Only enter deep sleep if no keys are pressed and we're not connected via USB
     else if (shouldEnterDeepSleep()) {
-      enterDeepSleep();
+     // TODO FIX ME Temporarily disable enterDeepSleep because we're not yet properly
+     // checking to make sure the bluetooth event queue is empty 
+     // and we also need to deal with the rotary encoder library generating extra events when we're going to sleep
+     // enterDeepSleep();
     }
 
     // In the future, this should run in response to a USB connect/disconnect event rather than on every cycle
