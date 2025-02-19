@@ -28,6 +28,7 @@
 #include "kaleidoscope/driver/hid/apis/MouseAPI.h"
 #include "kaleidoscope/driver/hid/apis/SystemControlAPI.h"
 #include "kaleidoscope/driver/hid/bluefruit/HIDD.h"
+#include "kaleidoscope/driver/ble/Bluefruit.h"
 
 namespace kaleidoscope {
 namespace driver {
@@ -211,9 +212,11 @@ bool HIDD::processNextReport_() {
     // Use xQueueOverwrite to safely update the item at the front of the queue
     // This is safe because we know the item exists (we just peeked at it)
     xQueueOverwrite(queue_handle_, &report);
+    DEBUG_BLE_MSG("Retrying report, %d retries left", report.retries_left);
     return false;  // Signal failure so we'll wait before next retry
   } else {
     // Out of retries, remove the failed item
+    DEBUG_BLE_MSG("Failed to send report, removing from queue");
     xQueueReceive(queue_handle_, &report, 0);
     return true;
   }
@@ -234,6 +237,7 @@ bool HIDD::queueReport_(ReportType type, uint8_t report_id, const void* data, ui
     
     // If we've exceeded our 5-second retry window, break out to try eviction
     if (elapsed >= QUEUE_RETRY_TIMEOUT) {
+      DEBUG_BLE_MSG("Failed to queue report, exceeded retry window");
       break;
     }
     
