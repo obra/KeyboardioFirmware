@@ -117,7 +117,7 @@ class BLEBluefruit : public Base {
   // Connection parameter constants for keyboard optimization
   static constexpr uint16_t CONN_INTERVAL_MIN_MS = 12;   
   static constexpr uint16_t CONN_INTERVAL_MAX_MS = 24;   
-  static constexpr uint16_t SLAVE_LATENCY = 4;           
+  static constexpr uint16_t SLAVE_LATENCY = 0;           
   static constexpr uint16_t SUPERVISION_TIMEOUT_MS = 400; 
   static constexpr int8_t CONN_TX_POWER = -4;
 
