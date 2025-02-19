@@ -39,6 +39,12 @@ class FocusSerial;
 class LEDControl;
 }  // namespace plugin
 
+namespace driver {
+namespace ble {
+class BLEBluefruit;  // Forward declaration
+}  // namespace ble
+}  // namespace driver
+
 namespace sketch_exploration {
 void pluginsExploreSketch();
 }  // namespace sketch_exploration
@@ -63,6 +69,7 @@ class Hooks {
   friend class Runtime_;
   friend class plugin::FocusSerial;
   friend class plugin::LEDControl;
+  friend class driver::ble::BLEBluefruit;  // Allow BLEBluefruit to trigger hooks
   friend void sketch_exploration::pluginsExploreSketch();
 
  private:

@@ -105,8 +105,43 @@ struct KeyboardProps {
   typedef NoSystemControl SystemControl;
 };
 
+// Abstract interface base class to enable hybrid HID drivers
+class KeyboardItf {
+// Vtables are too big for AVR
+#ifndef ARDUINO_ARCH_AVR
+ public:
+  virtual void setup() = 0;
+
+  virtual void sendReport()                           = 0;
+  virtual void releaseAllKeys()                       = 0;
+  virtual void pressConsumerControl(Key mapped_key)   = 0;
+  virtual void releaseConsumerControl(Key mapped_key) = 0;
+  virtual void pressSystemControl(Key mapped_key)     = 0;
+  virtual void releaseSystemControl(Key mapped_key)   = 0;
+  virtual void pressKey(Key pressed_key)              = 0;
+  virtual void pressModifiers(Key pressed_key)        = 0;
+  virtual void releaseModifiers(Key released_key)     = 0;
+  virtual void clearModifiers()                       = 0;
+  virtual void pressRawKey(Key pressed_key)           = 0;
+  virtual void releaseRawKey(Key released_key)        = 0;
+  virtual void releaseKey(Key released_key)           = 0;
+
+  virtual bool isKeyPressed(Key key)                  = 0;
+  virtual bool isModifierKeyActive(Key modifier_key)  = 0;
+  virtual bool wasModifierKeyActive(Key modifier_key) = 0;
+  virtual bool isAnyModifierKeyActive()               = 0;
+  virtual bool wasAnyModifierKeyActive()              = 0;
+  virtual uint8_t getKeyboardLEDs()                   = 0;
+  virtual uint8_t getProtocol()                       = 0;
+  virtual uint8_t getBootOnly()                       = 0;
+
+  virtual void setBootOnly(uint8_t bootonly) = 0;
+  virtual void onUSBReset()                  = 0;
+#endif
+};
+
 template<typename _Props>
-class Keyboard {
+class Keyboard : public KeyboardItf {
  private:
   typename _Props::BootKeyboard boot_keyboard_;
   typename _Props::ConsumerControl consumer_control_;

@@ -111,7 +111,7 @@ ifneq ($(KALEIDOSCOPE_CCACHE),)
 ccache_wrapper_property := --build-property compiler.wrapper.cmd=ccache
 endif
 
-.PHONY: configure-arduino-cli install-arduino-core-kaleidoscope install-arduino-core-avr
+.PHONY: configure-arduino-cli install-arduino-core-kaleidoscope install-arduino-core-avr install-arduino-core-nrf52
 .PHONY: stupid-workaround-for-make-inclusion-semantics
 
 stupid-workaround-for-make-inclusion-semantics:
@@ -139,6 +139,12 @@ install-arduino-core-kaleidoscope: arduino-update-cores
 install-arduino-core-avr: arduino-update-cores
 	$(QUIET) $(ARDUINO_CLI) core install "arduino:avr"
 
+
+install-arduino-core-nrf52: arduino-update-cores
+	$(QUIET) ARDUINO_BOARD_MANAGER_ADDITIONAL_URLS=https://raw.githubusercontent.com/keyboardio/arduino-kaleidoscope-master/refs/heads/main/package_kaleidoscope_master_index.json \
+	$(ARDUINO_CLI) core update-index
+	$(QUIET) ARDUINO_BOARD_MANAGER_ADDITIONAL_URLS=https://raw.githubusercontent.com/keyboardio/arduino-kaleidoscope-master/refs/heads/main/package_kaleidoscope_master_index.json \
+	$(ARDUINO_CLI) core install "keyboardio:nrf52"
 
 install-arduino-core-deps:
 	$(QUIET) $(ARDUINO_CLI) core install "keyboardio:avr-tools-only"

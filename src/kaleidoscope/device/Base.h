@@ -41,6 +41,19 @@
 #include "kaleidoscope/driver/mcu/None.h"         // for None
 #include "kaleidoscope/driver/storage/Base.h"     // for BaseProps
 #include "kaleidoscope/driver/storage/None.h"     // for None
+#include "kaleidoscope/driver/ble/None.h"         // for None
+
+#include "kaleidoscope/driver/battery_charger/None.h"  // for None
+#include "kaleidoscope/driver/battery_gauge/None.h"  // for None
+#include "kaleidoscope/driver/speaker/Base.h"        // for BaseProps
+#include "kaleidoscope/driver/speaker/None.h"        // for None
+
+
+// Connection mode for host HID and Serial
+enum HostConnectionMode {
+  MODE_USB = 1,
+  MODE_BLE = 2,
+};
 
 #ifndef CRGB
 #error cRGB and CRGB *must* be defined before including this header!
@@ -74,7 +87,15 @@ struct BaseProps {
   typedef kaleidoscope::driver::bootloader::None Bootloader;
   typedef kaleidoscope::driver::storage::BaseProps StorageProps;
   typedef kaleidoscope::driver::storage::None Storage;
-  static constexpr const char *short_name = USB_PRODUCT;
+  typedef kaleidoscope::driver::ble::None BLE;
+  typedef kaleidoscope::driver::battery_gauge::BaseProps BatteryGaugeProps;
+  typedef kaleidoscope::driver::battery_gauge::None BatteryGauge;
+  typedef kaleidoscope::driver::battery_charger::BaseProps BatteryChargerProps;
+  typedef kaleidoscope::driver::battery_charger::None BatteryCharger;
+  typedef kaleidoscope::driver::speaker::BaseProps SpeakerProps;
+  typedef kaleidoscope::driver::speaker::None Speaker;
+  static constexpr const char *short_name            = USB_PRODUCT;
+  static constexpr const bool isHybridHostConnection = false;
 };
 
 template<typename _DeviceProps>
@@ -107,7 +128,8 @@ class Base {
   NoOpSerial noop_serial_;
 
  public:
-  Base() {}
+  Base()
+    : host_connection_mode_(MODE_USB), primary_host_connection_mode_(MODE_USB) {}
 
   typedef _DeviceProps Props;
 
@@ -123,6 +145,13 @@ class Base {
   typedef typename _DeviceProps::Bootloader Bootloader;
   typedef typename _DeviceProps::StorageProps StorageProps;
   typedef typename _DeviceProps::Storage Storage;
+  typedef typename _DeviceProps::BLE BLE;
+  typedef typename _DeviceProps::BatteryGaugeProps BatteryGaugeProps;
+  typedef typename _DeviceProps::BatteryGauge BatteryGauge;
+  typedef typename _DeviceProps::BatteryChargerProps BatteryChargerProps;
+  typedef typename _DeviceProps::BatteryCharger BatteryCharger;
+  typedef typename _DeviceProps::SpeakerProps SpeakerProps;
+  typedef typename _DeviceProps::Speaker Speaker;
 
   static constexpr uint8_t matrix_rows    = KeyScannerProps::matrix_rows;
   static constexpr uint8_t matrix_columns = KeyScannerProps::matrix_columns;
@@ -179,6 +208,34 @@ class Base {
    */
   LEDDriver &ledDriver() {
     return led_driver_;
+  }
+
+  /**
+   * Returns the BLE driver
+   */
+  BLE &ble() {
+    return ble_;
+  }
+
+  /**
+   * Returns the battery gauge driver
+   */
+  BatteryGauge &batteryGauge() {
+    return battery_gauge_;
+  }
+
+  /**
+   * Returns the battery charger driver
+   */
+  BatteryCharger &batteryCharger() {
+    return battery_charger_;
+  }
+
+  /**
+   * Returns the speaker driver
+   */
+  Speaker &speaker() {
+    return speaker_;
   }
 
   /**
@@ -426,10 +483,17 @@ class Base {
   void setup() {
     bootloader_.setup();
     mcu_.setup();
+
+
+    // BLE has to come before HID, because SoftDevice needs initialization
+    ble_.setup();
     hid_.setup();
     storage_.setup();
     key_scanner_.setup();
     led_driver_.setup();
+    speaker_.setup();
+    battery_charger_.setup();
+    battery_gauge_.setup();
   }
 
   /**
@@ -448,7 +512,104 @@ class Base {
     bootloader_.rebootBootloader();
   }
 
+  /**
+   * Return whether the device has a hybrid host connection
+   */
+  bool isHybridHostConnection() {
+    return _DeviceProps::isHybridHostConnection;
+  }
+
+  /**
+   * Set host connection mode
+   */
+  void setHostConnectionMode(uint8_t mode) {
+    if (!isHybridHostConnection()) {
+      return;
+    }
+    host_connection_mode_ = mode;
+    hid_.setHostConnectionMode(mode);
+  }
+
+  /**
+   * Get current host connection mode
+   */
+  uint8_t getHostConnectionMode() {
+    return host_connection_mode_;
+  }
+
+  /**
+   * Toggle host connection priority between USB and BLE
+   */
+  void toggleHostConnectionMode() {
+    uint8_t old_mode = primary_host_connection_mode_;
+    if (!isHybridHostConnection()) {
+      return;
+    }
+    if (old_mode == MODE_USB) {
+      primary_host_connection_mode_ = MODE_BLE;
+    } else {
+      primary_host_connection_mode_ = MODE_USB;
+    }
+#if CFG_DEBUG >= 2
+    LOG_LV2("DEVICE", "primary_host_connection_mode_=%d", primary_host_connection_mode_);
+#endif
+  }
+
+  /**
+   * Automatically switch modes if hybrid
+   *
+   * Runtime calls this as part of the main loop.
+   */
+  void autoHostConnectionMode() {
+    uint8_t old_mode = host_connection_mode_;
+    if (!isHybridHostConnection()) {
+      return;
+    }
+    if (host_connection_mode_ == MODE_BLE && mcu_.USBConfigured()) {
+      if (!ble_.connected() || primary_host_connection_mode_ == MODE_USB) {
+        setHostConnectionMode(MODE_USB);
+      }
+    } else if (host_connection_mode_ == MODE_USB && ble_.connected()) {
+      if (!mcu_.USBConfigured() || primary_host_connection_mode_ == MODE_BLE) {
+        setHostConnectionMode(MODE_BLE);
+      }
+    }
+#if CFG_DEBUG >= 2
+    if (old_mode != host_connection_mode_) {
+      LOG_LV2("DEVICE", "autoHostConnectionMode: %d", host_connection_mode_);
+    }
+#endif
+  }
+
+  /**
+   * Initialize the serial port
+   *
+   * The hybrid drivers need to use the only common base class of serial
+   * devices, which is Stream. The begin() method to initialize the (emulated)
+   * speed of the serial device isn't present in Stream, so each device
+   * driver needs to do this in initSerial() instead.
+   */
+  void initSerial() {}
+
+  /**
+   * Called between processing cycles, can be used for power management
+   */
+  void betweenCycles() {}
+
   /** @} */
+
+  /**
+   * Update the speaker state and play any queued notes
+   *
+   * This method should be called once per cycle to
+   * manage the non-blocking playback of melodies and tones. It handles
+   * the timing and sequencing of notes in a melody, ensuring smooth
+   * playback without blocking the main loop.
+   *
+   */
+  void updateSpeaker() {
+    speaker_.update();
+  }
 
  protected:
   HID hid_;
@@ -457,6 +618,12 @@ class Base {
   MCU mcu_;
   Bootloader bootloader_;
   Storage storage_;
+  BLE ble_;
+  uint8_t host_connection_mode_;
+  uint8_t primary_host_connection_mode_;
+  BatteryGauge battery_gauge_;
+  BatteryCharger battery_charger_;
+  Speaker speaker_;
 };
 
 }  // namespace device

@@ -46,8 +46,22 @@ struct AbsoluteMouseProps {
   typedef NoAbsoluteMouse AbsoluteMouse;
 };
 
+// Abstract interface base class to enable hybrid HID drivers
+class AbsoluteMouseItf {
+// Vtables are too big for AVR
+#ifndef ARDUINO_ARCH_AVR
+ public:
+  virtual void setup()                                       = 0;
+  virtual void move(int8_t x, int8_t y, int8_t wheel)        = 0;
+  virtual void moveTo(uint16_t x, uint16_t y, uint8_t wheel) = 0;
+  virtual void clickButtons(uint8_t buttons)                 = 0;
+  virtual void pressButtons(uint8_t buttons)                 = 0;
+  virtual void releaseButtons(uint8_t buttons)               = 0;
+#endif
+};
+
 template<typename _Props>
-class AbsoluteMouse {
+class AbsoluteMouse : public AbsoluteMouseItf {
  private:
   typename _Props::AbsoluteMouse absolute_mouse_;
 

@@ -59,7 +59,7 @@ void Runtime_::setup(void) {
   //
   // TODO(anyone): Figure out a way we can get rid of this, and fix the bug
   // properly.
-  device().serialPort().begin(9600);
+  device().initSerial();
 
   kaleidoscope::sketch_exploration::pluginsExploreSketch();
   kaleidoscope::Hooks::onSetup();
@@ -77,6 +77,7 @@ void Runtime_::loop(void) {
   if (device().pollUSBReset()) {
     device().hid().onUSBReset();
   }
+
   kaleidoscope::Hooks::beforeEachCycle();
 
   // Next, we scan the keyswitches. Any toggle-on or toggle-off events will
@@ -88,7 +89,11 @@ void Runtime_::loop(void) {
   // event is being handled at a time.
   device().scanMatrix();
 
+
   kaleidoscope::Hooks::afterEachCycle();
+
+  // Let the device handle power management between cycles
+  device().betweenCycles();
 }
 
 // ----------------------------------------------------------------------------

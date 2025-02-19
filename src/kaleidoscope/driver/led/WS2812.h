@@ -1,168 +1,99 @@
-/*
- * Based on Light_WS2812, from:
- *  https://github.com/cpldcpu/light_ws2812
+/* Kaleidoscope - Firmware for computer input devices
  *
- * Original copyright:
  *
- *  light weight WS2812 lib V2.1 - Arduino support
+ * This program is free software: you can redistribute it and/or modify it under
+ * the terms of the GNU General Public License as published by the Free Software
+ * Foundation, version 3.
  *
- *  Controls WS2811/WS2812/WS2812B RGB-LEDs
- *  Author: Matthias Riegler
+ * Additional Permissions:
+ * As an additional permission under Section 7 of the GNU General Public
+ * License Version 3, you may link this software against a Vendor-provided
+ * Hardware Specific Software Module under the terms of the MCU Vendor
+ * Firmware Library Additional Permission Version 1.0.
  *
- *  Mar 07 2014: Added Arduino and C++ Library
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+ * FOR A PARTICULAR PURPOSE. See the GNU General Public License for more
+ * details.
  *
- *   September 6, 2014:    Added option to switch between most popular color orders
- *                                               (RGB, GRB, and BRG) --  Windell H. Oskay
- *
- * License:
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTabILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+ * You should have received a copy of the GNU General Public License along with
+ * this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
 #pragma once
 
+#include "kaleidoscope/driver/led/Base.h"
 #include "kaleidoscope/driver/led/Color.h"
-#include "kaleidoscope/hardware/avr/pins_and_ports.h"
-#include "ws2812/config.h"
+#include <Adafruit_NeoPixel.h>
 
 namespace kaleidoscope {
 namespace driver {
 namespace led {
 
-template<uint8_t pin, class Color, int8_t ledCount>
-class WS2812 {
- public:
-  WS2812()
-    : pinmask_(_BV(pin & 0xF)) {}
+struct WS2812Props : public BaseProps {
+  static constexpr uint8_t led_count = 0;  // Should be set by the user
+  static constexpr uint8_t pin       = 0;  // Should be set by the user
+  // key_led_map should be defined by the user
+};
 
-  int8_t led_count() {
-    return ledCount;
-  }
 
-  void sync() {
-    if (!modified_)
-      return;
-
-    DDR_OUTPUT(pin);
-
-    sendArrayWithMask(pinmask_);
-    _delay_us(50);
-    modified_ = false;
-  }
-
-  void setColorAt(int8_t index, Color color) {
-    if (index >= ledCount)
-      return;
-    modified_    = true;
-    leds_[index] = color;
-  }
-  void setColorAt(int8_t index, uint8_t r, uint8_t g, uint8_t b) {
-    if (index >= ledCount)
-      return;
-    modified_    = true;
-    leds_[index] = Color(r, g, b);
-  }
-  Color getColorAt(int8_t index) {
-    if (index >= ledCount)
-      return Color(0, 0, 0);
-    return leds_[index];
-  }
-
+template<typename _LEDDriverProps>
+class WS2812 : public Base<_LEDDriverProps> {
  private:
-  Color leds_[ledCount];  // NOLINT(runtime/arrays)
-  uint8_t pinmask_;
+  Adafruit_NeoPixel pixels;
   bool modified_ = false;
 
-  void sendArrayWithMask(uint8_t maskhi) {
-    uint8_t *data    = reinterpret_cast<uint8_t *>(leds_);
-    uint16_t datalen = ledCount * sizeof(Color);
-    uint8_t curbyte, ctr, masklo;
-    uint8_t sreg_prev;
+ public:
+  WS2812()
+    : pixels(_LEDDriverProps::led_count, _LEDDriverProps::pin, NEO_GRB + NEO_KHZ800) {
+  }
 
-    masklo = ~maskhi & PORT_REG_FOR_PIN(pin);
-    maskhi |= PORT_REG_FOR_PIN(pin);
+  void setup() {
+    pixels.begin();
+    pixels.show();             // Initialize all pixels to 'off'
+    pixels.setBrightness(50);  // Set initial brightness
 
-    sreg_prev = SREG;
-    cli();
-
-    while (datalen--) {
-      curbyte = (*data++);
-
-      asm volatile(
-        "       ldi   %0,8  \n\t"
-        "loop%=:            \n\t"
-        "       out   %2,%3 \n\t"  //  '1' [01] '0' [01] - re
-#if (w1_nops & 1)
-        w_nop1
-#endif
-#if (w1_nops & 2)
-          w_nop2
-#endif
-#if (w1_nops & 4)
-            w_nop4
-#endif
-#if (w1_nops & 8)
-              w_nop8
-#endif
-#if (w1_nops & 16)
-        w_nop16
-#endif
-        "       sbrs  %1,7  \n\t"  //  '1' [03] '0' [02]
-        "       out   %2,%4 \n\t"  //  '1' [--] '0' [03] - fe-low
-        "       lsl   %1    \n\t"  //  '1' [04] '0' [04]
-#if (w2_nops & 1)
-        w_nop1
-#endif
-#if (w2_nops & 2)
-          w_nop2
-#endif
-#if (w2_nops & 4)
-            w_nop4
-#endif
-#if (w2_nops & 8)
-              w_nop8
-#endif
-#if (w2_nops & 16)
-        w_nop16
-#endif
-        "       out   %2,%4 \n\t"  //  '1' [+1] '0' [+1] - fe-high
-#if (w3_nops & 1)
-        w_nop1
-#endif
-#if (w3_nops & 2)
-          w_nop2
-#endif
-#if (w3_nops & 4)
-            w_nop4
-#endif
-#if (w3_nops & 8)
-              w_nop8
-#endif
-#if (w3_nops & 16)
-        w_nop16
-#endif
-
-        "       dec   %0    \n\t"  //  '1' [+2] '0' [+2]
-        "       brne  loop%=\n\t"  //  '1' [+3] '0' [+4]
-        : "=&d"(ctr)
-        : "r"(curbyte), "I"(_SFR_IO_ADDR(PORT_REG_FOR_PIN(pin))), "r"(maskhi), "r"(masklo));
+    for (int i = 0; i < _LEDDriverProps::led_count; i++) {
+      pixels.setPixelColor(i, pixels.Color(0, 150, 150));
     }
+    modified_ = true;
 
-    SREG = sreg_prev;
+    syncLeds();
+  }
+
+
+  void syncLeds() {
+    if (modified_) {
+      pixels.show();
+      modified_ = false;
+    }
+  }
+
+  void setCrgbAt(uint8_t i, cRGB color) {
+
+    pixels.setPixelColor(i, pixels.Color(color.r, color.g, color.b));
+    modified_ = true;
+  }
+
+  cRGB getCrgbAt(uint8_t i) {
+    uint32_t color = pixels.getPixelColor(i);
+    cRGB rgb;
+    rgb.r = (color >> 16) & 0xFF;
+    rgb.g = (color >> 8) & 0xFF;
+    rgb.b = color & 0xFF;
+    return rgb;
+  }
+
+  void setBrightness(uint8_t brightness) {
+    pixels.setBrightness(brightness);
+    modified_ = true;
+  }
+
+  uint8_t getBrightness() {
+    return pixels.getBrightness();
   }
 };
+
 }  // namespace led
 }  // namespace driver
 }  // namespace kaleidoscope

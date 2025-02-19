@@ -15,3 +15,5 @@
 /results/
 generated-testcase.cpp
 bin/arduino-cli
+*/tmp/*
+plugins/Kaleidoscope-Hardware-Keyboardio-Preonic/examples/Devices/Keyboardio/Preonic/tmp/*

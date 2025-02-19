@@ -68,6 +68,10 @@ class Base {
   auto absoluteMouse() -> decltype(absolute_mouse_) & {
     return absolute_mouse_;
   }
+
+  void setHostConnectionMode(uint8_t mode) {
+    (void)mode;
+  }
 };
 
 }  // namespace hid

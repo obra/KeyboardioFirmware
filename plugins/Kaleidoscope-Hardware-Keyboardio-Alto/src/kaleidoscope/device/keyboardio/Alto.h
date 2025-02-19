@@ -100,6 +100,9 @@ class Alto : public kaleidoscope::device::Base<AltoProps> {
   auto serialPort() -> decltype(Serial) & {
     return Serial;
   }
+  void initSerial() {
+    Serial.begin(9600);
+  }
   static void rebootBootloader();
 };
 

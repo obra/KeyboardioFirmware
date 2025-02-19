@@ -30,7 +30,7 @@ namespace plugin {
 
 namespace ledpalette {
 __attribute__((weak)) extern const cRGB palette[] = {};
-__attribute__((weak)) extern bool palette_defined = false;
+__attribute__((weak)) bool palette_defined        = false;
 }  // namespace ledpalette
 
 void DefaultPalette::setup() {

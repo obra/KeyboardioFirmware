@@ -36,7 +36,7 @@ namespace plugin {
 
 namespace defaultcolormap {
 __attribute__((weak)) extern const uint8_t colormaps[][kaleidoscope_internal::device.matrix_rows * kaleidoscope_internal::device.matrix_columns] = {};
-__attribute__((weak)) extern uint8_t colormap_layers                                                                                             = 0;
+__attribute__((weak)) uint8_t colormap_layers                                                                                                    = 0;
 }  // namespace defaultcolormap
 
 void DefaultColormap::setup() {

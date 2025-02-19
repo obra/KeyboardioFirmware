@@ -66,7 +66,7 @@ class Issue1010 : public ::testing::Test {
     OS_CANCEL,
     CS_FIRST,
     CS_LAST = CS_FIRST + MAX_CS_KEYS,
-
+    KEYCLICK_TOGGLE,
     SAFE_START,
     KALEIDOSCOPE_SAFE_START = SAFE_START
   };
@@ -148,7 +148,8 @@ TEST_F(Issue1010, RangesHaveNotChanged) {
             uint16_t(kaleidoscope::ranges::CS_FIRST));
   ASSERT_EQ(uint16_t(Issue1010::CS_LAST),
             uint16_t(kaleidoscope::ranges::CS_LAST));
-
+  ASSERT_EQ(uint16_t(Issue1010::KEYCLICK_TOGGLE),
+            uint16_t(kaleidoscope::ranges::KEYCLICK_TOGGLE));
   ASSERT_EQ(uint16_t(Issue1010::SAFE_START),
             uint16_t(kaleidoscope::ranges::SAFE_START));
   ASSERT_EQ(uint16_t(Issue1010::KALEIDOSCOPE_SAFE_START),

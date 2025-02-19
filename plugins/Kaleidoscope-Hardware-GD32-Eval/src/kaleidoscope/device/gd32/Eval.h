@@ -57,6 +57,9 @@ class Eval : public kaleidoscope::device::Base<EvalProps> {
   auto serialPort() -> decltype(Serial) & {
     return Serial;
   }
+  void initSerial() {
+    Serial.begin(9600);
+  }
   static void rebootBootloader();
 };
 
