@@ -1,0 +1,52 @@
+VERSION 1
+
+KEYSWITCH LSHIFT    0 0
+KEYSWITCH RSHIFT    0 1
+KEYSWITCH A         1 0
+KEYSWITCH B         1 1
+
+# ==============================================================================
+NAME AutoShift explicit config
+
+RUN 4 ms
+PRESS A
+RUN 1 cycle
+
+# Timeout is 20ms
+RUN 20 ms
+EXPECT keyboard-report Key_C # report: { 6 }
+
+RUN 4 ms
+RELEASE A
+RUN 1 cycle
+EXPECT keyboard-report empty
+
+RUN 5 ms
+
+# ==============================================================================
+NAME AutoShift explicit config shifted
+
+RUN 4 ms
+PRESS LSHIFT
+RUN 1 cycle
+EXPECT keyboard-report Key_LeftShift # report: { e1 }
+
+RUN 4 ms
+PRESS A
+RUN 1 cycle
+
+# Timeout is 20ms
+RUN 20 ms
+EXPECT keyboard-report Key_LeftShift Key_C # report: { 6 e1 }
+
+RUN 4 ms
+RELEASE A
+RUN 1 cycle
+EXPECT keyboard-report Key_LeftShift # report: { e1 }
+
+RUN 4 ms
+RELEASE LSHIFT
+RUN 1 cycle
+EXPECT keyboard-report empty
+
+RUN 5 ms

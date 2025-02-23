@@ -78,6 +78,30 @@ As you can see, this method takes a `Key` as its input and returns either `true`
 (for keys eligible to be auto-shifted) or `false` (for keys AutoShift will leave
 alone).
 
+## Producing other characters than shifted variants of the keys
+
+It is possible to produce other characters than just shifted variants of the
+pressed key by providing an explicit mapping between the pressed key and the
+key that should be produced instead.
+
+Such a mapping must be defined in the `setup` method in your sketch:
+
+```
+AUTOSHIFT(
+  kaleidoscope::plugin::LongPress(Key_Slash, Key_Backslash),
+  kaleidoscope::plugin::LongPress(Key_Z,     ShiftToLayer(SYMBOL)),
+)
+```
+
+Such explicit mappings take precedence over shifting the key. That
+means if all alphanumeric characters are configured for AutoShift, but
+the ‘e’ key has an explicit mapping to produce ‘ë’, a long press on ‘e’
+will result in ’ë’, not ‘E’.
+
+As can be seen in the example above the resulting key does not necessarily need
+to be a regular key, but can be any Key object, like the layer shift in the
+example. Be aware however that key repeats are not suppressed.
+
 ## Plugin compatibility
 
 If you're using AutoShift in a sketch that also includes the Qukeys and/or

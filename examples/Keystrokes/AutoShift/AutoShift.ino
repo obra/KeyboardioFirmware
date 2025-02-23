@@ -65,6 +65,9 @@ void setup() {
   AutoShift.setEnabled(AutoShift.letterKeys() | AutoShift.numberKeys());
   // Add symbol keys to the enabled categories:
   AutoShift.enable(AutoShift.symbolKeys());
+  // instead of shifting, produce a backslash on long pressing slash
+  AUTOSHIFT(
+    kaleidoscope::plugin::LongPress(Key_Slash, Key_Backslash), )
   // Set the AutoShift long-press time to 150ms:
   AutoShift.setTimeout(150);
   // Start with AutoShift turned off:

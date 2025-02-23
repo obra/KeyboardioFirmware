@@ -34,6 +34,22 @@
 namespace kaleidoscope {
 namespace plugin {
 
+struct LongPress {
+  // The key that should result in a different value on long press.
+  Key key;
+  // The alternate Key value that should be produced on long press.
+  Key alternate_key;
+
+  // This is the constructor that should be used when creating a LongPress object in
+  // the PROGMEM array that will be used by explicit mappings (i.e. in the `AUTOSHIFT()`
+  // macro).
+  constexpr LongPress(Key key, Key alternate_key)
+    : key(key), alternate_key(alternate_key) {}
+  // This constructor is here so that we can create an empty LongPress object in RAM
+  // into which we can copy the values from a PROGMEM LongPress object.
+  LongPress() = default;
+};
+
 // =============================================================================
 /// Kaleidoscope plugin for long-press auto-shift keys
 ///
@@ -237,6 +253,12 @@ class AutoShift : public Plugin {
   EventHandlerResult onKeyswitchEvent(KeyEvent &event);
   EventHandlerResult afterEachCycle();
 
+  template<uint8_t _explicitmappings_count>
+  void configureLongPresses(LongPress const (&explicitmappings)[_explicitmappings_count]) {
+    explicitmappings_       = explicitmappings;
+    explicitmappings_count_ = _explicitmappings_count;
+  }
+
  private:
   // ---------------------------------------------------------------------------
   /// A container for AutoShift configuration settings
@@ -273,6 +295,16 @@ class AutoShift : public Plugin {
 
   /// The default function for `isAutoShiftable()`
   bool enabledForKey(Key key);
+
+  bool isExplicitlyMapped(Key key);
+
+  // An array of LongPress objects in PROGMEM.
+  LongPress const *explicitmappings_{nullptr};
+  uint8_t explicitmappings_count_{0};
+
+  // A cache of the current explicit config key values, so we
+  // don't have to keep looking them up from PROGMEM.
+  LongPress mapped_key_ = {.key = Key_Transparent, .alternate_key = Key_Transparent};
 };
 
 // =============================================================================
@@ -293,3 +325,10 @@ class AutoShiftConfig : public Plugin {
 
 extern kaleidoscope::plugin::AutoShift AutoShift;
 extern kaleidoscope::plugin::AutoShiftConfig AutoShiftConfig;
+
+#define AUTOSHIFT(longpress_defs...)                                    \
+  {                                                                     \
+    static kaleidoscope::plugin::LongPress const qk_table[] PROGMEM = { \
+      longpress_defs};                                                  \
+    AutoShift.configureLongPresses(qk_table);                           \
+  }

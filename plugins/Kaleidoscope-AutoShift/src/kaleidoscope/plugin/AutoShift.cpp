@@ -28,6 +28,7 @@
 #include "kaleidoscope/Runtime.h"          // for Runtime, Runtime_
 #include "kaleidoscope/key_defs.h"         // for Key, Key_0, Key_1, Key_A, Key_F1, Key_F12, Key...
 #include "kaleidoscope/keyswitch_state.h"  // for keyToggledOn, keyIsInjected
+#include "kaleidoscope/progmem_helpers.h"  // for cloneFromProgmem
 
 // IWYU pragma: no_include "HIDAliases.h"
 
@@ -62,6 +63,11 @@ bool AutoShift::enabledForKey(Key key) {
   if (!key.isKeyboardKey())
     return false;
 
+  // Check whether we have an explicit mapping for that key
+  if (isExplicitlyMapped(key)) {
+    return true;
+  }
+
   // We compare only the keycode, and disregard any modifier flags applied to
   // the key.  This simplifies the comparison, and also allows AutoShift to
   // apply to keys like `RALT(Key_E)`.
@@ -95,6 +101,24 @@ bool AutoShift::enabledForKey(Key key) {
       return true;
   }
 
+  return false;
+}
+
+bool AutoShift::isExplicitlyMapped(Key key) {
+  // Check whether the given key has an explicit mapping to a different one
+  for (uint8_t i{0}; i < explicitmappings_count_; ++i) {
+    LongPress mappedKey = cloneFromProgmem(explicitmappings_[i]);
+    if (mappedKey.key == key) {
+      // cache the mapped key to not have to search it again
+      mapped_key_.key           = mappedKey.key;
+      mapped_key_.alternate_key = mappedKey.alternate_key;
+      return true;
+    }
+  }
+
+  // If no matches were found, clear mapped_key_ and return false
+  mapped_key_.key           = Key_Transparent;
+  mapped_key_.alternate_key = Key_Transparent;
   return false;
 }
 
@@ -192,10 +216,18 @@ void AutoShift::flushEvent(bool is_long_press) {
     return;
   KeyEvent event = queue_.event(0);
   if (is_long_press) {
-    event.key     = Runtime.lookupKey(event.addr);
-    uint8_t flags = event.key.getFlags();
-    flags ^= SHIFT_HELD;
-    event.key.setFlags(flags);
+    event.key = Runtime.lookupKey(event.addr);
+
+    // If we have an explicit mapping for that key, apply that.
+    if (mapped_key_.key != Key_Transparent) {
+      event.key = mapped_key_.alternate_key;
+    } else {
+      // If there was no explicit mapping, just add the shift modifier
+      // event.key = longpresses[event.key]
+      uint8_t flags = event.key.getFlags();
+      flags ^= SHIFT_HELD;
+      event.key.setFlags(flags);
+    }
   }
   queue_.shift();
   Runtime.handleKeyswitchEvent(event);
