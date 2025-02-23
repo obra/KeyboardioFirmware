@@ -91,6 +91,16 @@ the following properties and methods.
 > Setting the timeout to 0 will disable the plugin until it is set to a higher
 > value.
 
+### `.suspend()`, `.resume()`
+
+> Suspends or resumes `IdleLEDs`. When suspended, `IdleLEDs` will immediately
+> enter idle state, and turn LEDs off. When resuming, it will turn the LEDs back
+> on, and start checking idleness again.
+>
+> The intended use of these functions is when LEDs are turned on or off by other
+> means, such as part of host power management, and syncing that state with
+> `IdleLEDs` is desired.
+
 ## Focus commands
 
 The plugin provides a single [Focus][FocusSerial] command, but only when using

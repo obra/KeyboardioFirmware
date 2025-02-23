@@ -1,6 +1,6 @@
 /* -*- mode: c++ -*-
  * Kaleidoscope-Idle-LEDs -- Turn off the LEDs when the keyboard's idle
- * Copyright (C) 2018, 2019, 2020, 2021  Keyboard.io, Inc
+ * Copyright (C) 2018, 2019, 2020, 2021, 2022  Keyboard.io, Inc
  * Copyright (C) 2019  Dygma, Inc
  *
  * This program is free software: you can redistribute it and/or modify it under
@@ -44,26 +44,38 @@ void IdleLEDs::setIdleTimeoutSeconds(uint32_t new_limit) {
   idle_time_limit = new_limit * 1000;
 }
 
+void IdleLEDs::resume() {
+  // Enabling LEDs is fairly expensive, so we only do it if we have to.
+  if (!::LEDControl.isEnabled()) {
+    ::LEDControl.enable();
+  }
+  idle_       = false;
+  start_time_ = Runtime.millisAtCycleStart();
+}
+
+void IdleLEDs::suspend() {
+  // Disabling LEDs is fairly expensive, so we only do it if we have to.
+  if (::LEDControl.isEnabled()) {
+    ::LEDControl.disable();
+  }
+
+  idle_ = true;
+}
+
 EventHandlerResult IdleLEDs::beforeEachCycle() {
   if (idle_time_limit == 0)
     return EventHandlerResult::OK;
 
-  if (::LEDControl.isEnabled() &&
+  if (!idle_ &&
       Runtime.hasTimeExpired(start_time_, idle_time_limit)) {
-    ::LEDControl.disable();
-    idle_ = true;
+    suspend();
   }
 
   return EventHandlerResult::OK;
 }
 
 EventHandlerResult IdleLEDs::onKeyEvent(KeyEvent &event) {
-  if (idle_) {
-    ::LEDControl.enable();
-    idle_ = false;
-  }
-
-  start_time_ = Runtime.millisAtCycleStart();
+  resume();
 
   return EventHandlerResult::OK;
 }
