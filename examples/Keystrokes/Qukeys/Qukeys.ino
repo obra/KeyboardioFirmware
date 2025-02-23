@@ -65,7 +65,7 @@ const macro_t *macroAction(uint8_t macro_id, KeyEvent &event) {
 }
 
 // Use Qukeys
-KALEIDOSCOPE_INIT_PLUGINS(Qukeys, Macros);
+KALEIDOSCOPE_INIT_PLUGINS(Qukeys, QukeysConfig, Macros);
 
 void setup() {
   // The following Qukey definitions are for the left side of the home row (and

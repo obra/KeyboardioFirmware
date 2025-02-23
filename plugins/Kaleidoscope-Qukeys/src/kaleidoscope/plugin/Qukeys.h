@@ -99,6 +99,11 @@ class Qukeys : public kaleidoscope::Plugin {
     hold_timeout_ = hold_timeout;
   }
 
+  // Get the timeout (in milliseconds) for a held qukey.
+  uint16_t getHoldTimeout() {
+    return hold_timeout_;
+  }
+
   // Set the timeout (in milliseconds) for the tap-repeat feature. If a qukey is
   // tapped twice in a row in less time than this amount, it will allow the user
   // to hold the key with its primary value (unless it's a SpaceCadet type key,
@@ -108,6 +113,11 @@ class Qukeys : public kaleidoscope::Plugin {
   // it will result in two independent taps.
   void setMaxIntervalForTapRepeat(uint8_t ttl) {
     tap_repeat_.timeout = ttl;
+  }
+
+  // Get the timeout (in milliseconds) for the tap-repeat feature.
+  uint8_t getMaxIntervalForTapRepeat() {
+    return tap_repeat_.timeout;
   }
 
   // Set the percentage of the duration of a subsequent key's press that must
@@ -128,6 +138,12 @@ class Qukeys : public kaleidoscope::Plugin {
     }
   }
 
+  // Get the overlap threshold percentage. See above for the description of the
+  // setting itself.
+  uint8_t getOverlapThreshold() {
+    return overlap_threshold_;
+  }
+
   // Set the minimum length of time a qukey must be held before it can resolve
   // to its alternate key value. If a qukey is pressed and released in less than
   // this number of milliseconds, it will always produce its primary key value.
@@ -135,10 +151,21 @@ class Qukeys : public kaleidoscope::Plugin {
     minimum_hold_time_ = min_hold_time;
   }
 
+  // Get the minimum hold time. See the setter above for a more detailed
+  // description.
+  uint8_t getMinimumHoldTime() {
+    return minimum_hold_time_;
+  }
+
   // Set the minimum interval between the previous keypress and the qukey press
   // to make the qukey eligible to become its alternate keycode.
   void setMinimumPriorInterval(uint8_t min_interval) {
     minimum_prior_interval_ = min_interval;
+  }
+
+  // Getter for the above setter.
+  uint8_t getMinimumPriorInterval() {
+    return minimum_prior_interval_;
   }
 
   // Function for defining the array of qukeys data (in PROGMEM). It's a

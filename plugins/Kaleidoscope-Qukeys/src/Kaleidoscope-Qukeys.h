@@ -21,4 +21,5 @@
  */
 #pragma once
 
-#include "kaleidoscope/plugin/Qukeys.h"  // IWYU pragma: export
+#include "kaleidoscope/plugin/Qukeys.h"        // IWYU pragma: export
+#include "kaleidoscope/plugin/QukeysConfig.h"  // IWYU pragma: export
