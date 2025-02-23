@@ -20,7 +20,7 @@ sys.path.append('_sphinx')
 # -- Project information -----------------------------------------------------
 
 project = 'Kaleidoscope'
-copyright = '2023, Keyboardio & Friends'
+copyright = '2024, Keyboardio & Friends'
 author = 'Keyboardio & Friends'
 
 
@@ -30,8 +30,8 @@ author = 'Keyboardio & Friends'
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
 extensions = [
-    #'breathe',
-    #'exhale',
+    'breathe',
+    'exhale',
     'recommonmark',
     'sphinx_markdown_tables'
 ]
@@ -55,6 +55,8 @@ exhale_args = {
     "doxygenStripFromPath":  "..",
     # Suggested optional arguments
     "createTreeView":        True,
+    "fullToctreeMaxDepth": 1,  # Adjust depth based on your preference
+
     # TIP: if using the sphinx-bootstrap-theme, you need
     # "treeViewIsBootstrap": True,
     "exhaleExecutesDoxygen": True,
@@ -106,7 +108,7 @@ html_theme_options = {
 
     'collapse_navigation': True,
     'sticky_navigation': True,
-    'navigation_depth': 8,
+    'navigation_depth': 2,
     'includehidden': False,
     'titles_only': True
 }

@@ -21,11 +21,23 @@
  * this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
+
+
+
+
 #pragma once
+/** \file */
 
 #include <stdint.h>  // for uint8_t
 
 #ifndef CRGB
+
+/**
+ * \struct cRGB None.h kaleidoscope/driver/led/None.h
+ *
+ * \brief A struct representing an RGB value.
+ */
+
 
 struct cRGB {
   uint8_t r, g, b;

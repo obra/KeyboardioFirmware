@@ -24,6 +24,8 @@ THE SOFTWARE.
 
 #pragma once
 
+#if !defined(DOXYGEN_SHOULD_SKIP_THIS)
+
 
 // These mappings were extracted and transcribed from
 // https://www.usb.org/sites/default/files/hut1_2.pdf
@@ -795,3 +797,5 @@ THE SOFTWARE.
 // Reserved							0x2D5-4FF
 //	HID_CONTACT_* (not included here)			0x500-514
 // Reserved							0x515-FFFF
+//
+#endif DOXYGEN_SHOULD_SKIP_THIS

@@ -22,7 +22,9 @@
  */
 
 #pragma once
-
+#if !defined(DOXYGEN_SHOULD_SKIP_THIS)
+// doxyskip
+#if defined(DOXYGEN_SHOULD_SKIP_THIS)
 #include <stdint.h>  // for uint8_t
 
 #include "kaleidoscope/KeyAddr.h"  // for KeyAddr
@@ -45,6 +47,8 @@ constexpr uint8_t RC(uint8_t row, uint8_t col) {
 
 constexpr uint8_t R0C0   = keyIndex(0, 0);
 constexpr uint8_t R0C1   = keyIndex(0, 1);
+
+
 constexpr uint8_t R0C2   = keyIndex(0, 2);
 constexpr uint8_t R0C3   = keyIndex(0, 3);
 constexpr uint8_t R0C4   = keyIndex(0, 4);
@@ -943,3 +947,5 @@ constexpr uint8_t R29C26 = keyIndex(29, 26);
 constexpr uint8_t R29C27 = keyIndex(29, 27);
 constexpr uint8_t R29C28 = keyIndex(29, 28);
 constexpr uint8_t R29C29 = keyIndex(29, 29);
+#endif
+#endif // DOXYGEN_SHOULD_SKIP_THIS
