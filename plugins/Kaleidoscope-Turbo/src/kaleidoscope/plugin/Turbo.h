@@ -62,6 +62,7 @@ class Turbo : public kaleidoscope::Plugin {
   bool sticky_             = false;
   bool flash_              = true;
   cRGB active_color_       = CRGB(160, 0, 0);
+  KeyAddr turbo_key_addr_;
 
   bool active_               = false;
   uint32_t start_time_       = 0;

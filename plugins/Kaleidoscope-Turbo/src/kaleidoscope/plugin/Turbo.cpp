@@ -83,6 +83,9 @@ EventHandlerResult Turbo::onKeyEvent(KeyEvent &event) {
   if (event.key != Key_Turbo)
     return EventHandlerResult::OK;
 
+  // Remember the address so we can pin its LED on each cycle when necessary
+  turbo_key_addr_ = event.addr;
+
 
   if (active_) {
     // If Turbo is active, and in "sticky" mode, we abort the event when a Turbo
@@ -94,6 +97,7 @@ EventHandlerResult Turbo::onKeyEvent(KeyEvent &event) {
     // If not in "sticky" mode and a Turbo key toggles off, or if in "sticky"
     // mode and a Turbo key toggles on, we deactivate Turbo.
     active_ = false;
+    LEDControl::setCrgbAt(event.addr, CRGB(0, 0, 0));
     if (flash_)
       LEDControl::refreshAll();
 
@@ -101,6 +105,7 @@ EventHandlerResult Turbo::onKeyEvent(KeyEvent &event) {
     // If Turbo is inactive, turn it on when a Turbo key is pressed.
     active_     = true;
     start_time_ = Runtime.millisAtCycleStart() - interval_;
+    LEDControl::setCrgbAt(event.addr, active_color_);
   }
 
   // We assume that other plugins don't need to know about Turbo key events.
@@ -129,6 +134,8 @@ EventHandlerResult Turbo::afterEachCycle() {
 
       // Send the re-populated keyboard report.
       Runtime.hid().keyboard().sendReport();
+    } else {
+      LEDControl::setCrgbAt(turbo_key_addr_, active_color_);
     }
   }
   return EventHandlerResult::OK;
