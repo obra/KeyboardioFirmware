@@ -139,3 +139,38 @@ static_assert(KALEIDOSCOPE_REQUIRED_API_VERSION == KALEIDOSCOPE_API_VERSION,
 // Kaleidoscope in global namespace.
 //
 extern kaleidoscope::Runtime_ &Kaleidoscope;
+
+// Have a list of plugins that are always added.
+// Those plugins might be configured by macros defined at the top of the sketch.
+// Plugins can thus be turned into complete no-ops.
+
+// For the sketch compilation unit, we pretend that there is a NoOpPlugin
+// symbol. This is intented to be passed to the KALEIDOSCOPE_INIT_PLUGINS(...)
+// function macro. As no existing non-inline functions of this macro are called
+// for this plugin instance, it does not hurt that the instance is not
+// actually instanciated in no other compilation unit.
+//
+#ifdef KALEIDOSCOPE_SKETCH
+namespace kaleidoscope {
+extern Plugin NoOpPlugin; // This is on purpose not instanciated in any
+// compilation unit.
+} // namespace kaleidoscope
+#endif
+
+// Plugins leading the list passed to KALEIDOSCOPE_INIT_PLUGINS
+//
+// Note: As long as we do not actually pass a plugin to
+//       KALEIDOSCOPE_STANDARD_PLUGINS_START, we need to pass at least
+//       a no-op plugin to satisfy the interface. The NoOpPlugin
+//       can be replaced as soon as other plugins are added.
+//
+#define KALEIDOSCOPE_STANDARD_PLUGINS_START kaleidoscope::NoOpPlugin
+
+// Plugins trailing the list passed to KALEIDOSCOPE_INIT_PLUGINS
+//
+// Note: As long as we do not actually pass a plugin to
+//       KALEIDOSCOPE_STANDARD_PLUGINS_END, we need to pass at least
+//       a no-op plugin to satisfy the interface. The NoOpPlugin
+//       can be replaced as soon as other plugins are added.
+//
+#define KALEIDOSCOPE_STANDARD_PLUGINS_END kaleidoscope::NoOpPlugin

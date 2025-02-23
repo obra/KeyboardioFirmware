@@ -199,7 +199,19 @@
     static kaleidoscope::EventHandlerResult apply(Args__&&... hook_args) {    __NL__ \
                                                                               __NL__ \
       kaleidoscope::EventHandlerResult result;                                __NL__ \
+                                                                              __NL__ \
+      /* KALEIDOSCOPE_STANDARD_PLUGINS_START is defined in Kaleidoscope.h */  __NL__ \
+      /**/                                                                    __NL__ \
+      MAP(_INLINE_EVENT_HANDLER_FOR_PLUGIN,                                   __NL__ \
+          KALEIDOSCOPE_STANDARD_PLUGINS_START)                                __NL__ \
+                                                                              __NL__ \
       MAP(_INLINE_EVENT_HANDLER_FOR_PLUGIN, __VA_ARGS__)                      __NL__ \
+                                                                              __NL__ \
+      /* KALEIDOSCOPE_STANDARD_PLUGINS_END is defined in Kaleidoscope.h */    __NL__ \
+      /**/                                                                    __NL__ \
+      MAP(_INLINE_EVENT_HANDLER_FOR_PLUGIN,                                   __NL__ \
+          KALEIDOSCOPE_STANDARD_PLUGINS_END)                                  __NL__ \
+                                                                              __NL__ \
                                                                               __NL__ \
       return result;                                                          __NL__ \
     }                                                                         __NL__ \
