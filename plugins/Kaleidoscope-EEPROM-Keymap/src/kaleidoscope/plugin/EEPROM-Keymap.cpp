@@ -41,7 +41,6 @@ uint8_t EEPROMKeymap::max_layers_;
 uint8_t EEPROMKeymap::progmem_layers_;
 
 EventHandlerResult EEPROMKeymap::onSetup() {
-  ::EEPROMSettings.onSetup();
   progmem_layers_ = layer_count;
   return EventHandlerResult::OK;
 }

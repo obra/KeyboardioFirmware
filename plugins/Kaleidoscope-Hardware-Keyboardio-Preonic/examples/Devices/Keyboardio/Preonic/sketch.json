@@ -1,0 +1,6 @@
+{
+  "cpu": {
+    "fqbn": "keyboardio:nrf52:preonic",
+    "port": ""
+  }
+}

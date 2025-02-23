@@ -47,8 +47,27 @@ struct MouseProps {
   typedef NoMouse Mouse;
 };
 
+// Abstract interface base class to enable hybrid HID drivers
+class MouseItf {
+// Vtables are too big for AVR
+#ifndef ARDUINO_ARCH_AVR
+ public:
+  virtual void setup()                                                        = 0;
+  virtual void sendReport()                                                   = 0;
+  virtual void move(int8_t x, int8_t y, int8_t vWheel = 0, int8_t hWheel = 0) = 0;
+  /*
+   * Unused in-tree in Kaleidoscope, but defined by some HID drivers
+   */
+  // virtual void stop(bool x, bool y, bool vWheel = false, bool hWheel = false) = 0;
+  virtual void releaseAllButtons()             = 0;
+  virtual void pressButtons(uint8_t buttons)   = 0;
+  virtual void releaseButtons(uint8_t buttons) = 0;
+  virtual void clickButtons(uint8_t buttons)   = 0;
+#endif
+};
+
 template<typename _Props>
-class Mouse {
+class Mouse : public MouseItf {
  private:
   typename _Props::Mouse mouse_;
 

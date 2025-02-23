@@ -126,7 +126,7 @@ bool FocusSerial::inputMatchesCommand(const char *input, const char *expected) {
 
 bool FocusSerial::isEOL() {
   int c        = -1;
-  auto timeout = Runtime.serialPort().getTimeout();
+  auto timeout = 1000;  // Runtime.serialPort().getTimeout(); // TODO nrf core doesn't expose getTimeout
   auto start   = millis();
 
 

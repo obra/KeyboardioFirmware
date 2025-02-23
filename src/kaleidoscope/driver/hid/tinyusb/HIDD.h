@@ -53,13 +53,16 @@ class HIDD : public Adafruit_USBD_HID {
     if (TinyUSBDevice.suspended()) {
       TinyUSBDevice.remoteWakeup();
       /*
-       * Wait for 30ms, which is the minimum required by spec for a resume.
+       * The spec says we should wait for 30ms for a resume.
        * (USB 2.0 §7.1.7.7)
        *
        * 20ms of host echoing the resume downstream, and 10ms of recovery time
        * once the bus has resumed.
+       *  
+       * Instead of doing that, we roll that into our blocking delay below, so that
+       * if we're ready earlier, we don't block the runloop and potentially miss
+       * other events
        */
-      delay(30);
     }
     /*
      * Block for up to 250ms for endpoint to become ready. If the host is polling,

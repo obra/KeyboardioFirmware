@@ -112,17 +112,34 @@ void LEDControl::set_all_leds_to(uint8_t r, uint8_t g, uint8_t b) {
 }
 
 void LEDControl::set_all_leds_to(cRGB color) {
+  if (!Runtime.has_leds)
+    return;
+
+  bool will_be_on = (color.r != 0 || color.g != 0 || color.b != 0);
+  bool was_off = !Runtime.device().ledDriver().areAnyLEDsOn();
+
   for (auto led_index : Runtime.device().LEDs().all()) {
-    setCrgbAt(led_index.offset(), color);
+    Runtime.device().ledDriver().setCrgbAt(led_index.offset(), color);
   }
+
+  Runtime.device().ledDriver().updateAllLEDState(will_be_on, was_off);
 }
 
 void LEDControl::setCrgbAt(uint8_t led_index, cRGB crgb) {
-  Runtime.device().setCrgbAt(led_index, crgb);
+  if (!Runtime.has_leds)
+    return;
+
+  // Check LED state change
+  cRGB current = Runtime.device().ledDriver().getCrgbAt(led_index);
+  bool was_off = (current.r == 0 && current.g == 0 && current.b == 0);
+  bool will_be_on = (crgb.r != 0 || crgb.g != 0 || crgb.b != 0);
+
+  Runtime.device().ledDriver().setCrgbAt(led_index, crgb);
+  Runtime.device().ledDriver().updateLEDState(will_be_on, was_off);
 }
 
 void LEDControl::setCrgbAt(KeyAddr key_addr, cRGB color) {
-  Runtime.device().setCrgbAt(key_addr, color);
+  setCrgbAt(Runtime.device().getLedIndex(key_addr), color);
 }
 
 cRGB LEDControl::getCrgbAt(uint8_t led_index) {

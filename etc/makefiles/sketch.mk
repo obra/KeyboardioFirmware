@@ -107,7 +107,7 @@ endif
 #	@: # dummy recipe for the sketch file
 
 
-.PHONY: compile configure-arduino-cli install-arduino-core-kaleidoscope install-arduino-core-avr 
+.PHONY: compile 
 .PHONY: disassemble decompile size-map flash clean all test
 
 all: compile 

@@ -47,7 +47,7 @@ struct BaseProps {
 template<typename _LEDDriverProps>
 class Base {
  public:
-  Base() {}
+  Base() : active_leds_(0), last_led_activity_time_(0) {}
 
   void setup() {}
   void syncLeds(void) {}
@@ -60,6 +60,58 @@ class Base {
   void setBrightness(uint8_t brightness) {}
   uint8_t getBrightness() {
     return 255;
+  }
+
+  /**
+   * @returns true if any LEDs are currently lit (non-black)
+   */
+  bool areAnyLEDsOn() const {
+    return active_leds_ > 0;
+  }
+
+  /**
+   * @returns timestamp in milliseconds when LEDs were last turned on or off
+   */
+  uint32_t LEDsLastOn() const {
+    return last_led_activity_time_;
+  }
+
+  /**
+   * @brief Update the LED activity state for a single LED
+   * 
+   * This method tracks when individual LEDs turn on or off, maintaining
+   * a count of active LEDs and updating the last activity timestamp.
+   * 
+   * @param will_be_on true if the LED will be turned on
+   * @param was_off true if the LED was previously off
+   */
+  void updateLEDState(bool will_be_on, bool was_off) {
+    if (will_be_on && was_off) {
+      active_leds_++;
+      last_led_activity_time_ = millis();
+    } else if (!will_be_on && !was_off) {
+      active_leds_--;
+      last_led_activity_time_ = millis();
+    }
+  }
+
+  /**
+   * @brief Update the LED activity state for all LEDs
+   * 
+   * This method is used when setting all LEDs to the same state at once.
+   * It updates the active LED count and last activity timestamp accordingly.
+   * 
+   * @param will_be_on true if the LEDs will be turned on
+   * @param was_off true if all LEDs were previously off
+   */
+  void updateAllLEDState(bool will_be_on, bool was_off) {
+    if (will_be_on && was_off) {
+      active_leds_ = _LEDDriverProps::led_count;
+      last_led_activity_time_ = millis();
+    } else if (!will_be_on) {
+      active_leds_ = 0;
+      last_led_activity_time_ = millis();
+    }
   }
 
   static uint8_t getLedIndex(uint8_t key_offset) {
@@ -152,6 +204,11 @@ class Base {
 
  protected:
   typedef _LEDDriverProps Props_;
+    /** Number of LEDs that are currently lit (non-black) */
+  uint16_t active_leds_;
+  
+  /** Timestamp of the last LED state change in milliseconds */
+  uint32_t last_led_activity_time_;
 };
 
 }  // namespace led

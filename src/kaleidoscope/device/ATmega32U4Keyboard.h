@@ -52,6 +52,9 @@ class ATmega32U4Keyboard : public kaleidoscope::device::Base<_DeviceProps> {
   auto serialPort() -> decltype(Serial) & {
     return Serial;
   }
+  void initSerial() {
+    Serial.begin(9600);
+  }
 };
 #else   // ifndef KALEIDOSCOPE_VIRTUAL_BUILD
 #endif  // ifndef KALEIDOSCOPE_VIRTUAL_BUILD
