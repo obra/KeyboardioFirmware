@@ -294,27 +294,34 @@ EventHandlerResult OneShot::afterEachCycle() {
 
   bool oneshot_expired = hasTimedOut(settings_.timeout);
   bool hold_expired    = hasTimedOut(settings_.hold_timeout);
+  bool sticky_expired  = (sticky_time_out_ > 0) && hasTimedOut32(sticky_time_out_);
   bool any_temp_keys   = false;
+  bool any_sticky_keys = false;
+  
+  if(sticky_expired) 
+	  cancel(true);
+  else {
+	for (KeyAddr key_addr : temp_addrs_) {
+		any_temp_keys = true;
 
-  for (KeyAddr key_addr : temp_addrs_) {
-    any_temp_keys = true;
-
-    if (glue_addrs_.read(key_addr)) {
-      // Release keys in "one-shot" state that have timed out or been cancelled
-      // by another key press.
-      if (oneshot_expired)
-        releaseKey(key_addr);
-    } else {
-      // Cancel "pending" state of keys held longer than the hold timeout.
-      if (hold_expired)
-        temp_addrs_.clear(key_addr);
-    }
+		if (glue_addrs_.read(key_addr)) {
+		  // Release keys in "one-shot" state that have timed out or been cancelled
+		  // by another key press.
+		  if (oneshot_expired)
+			releaseKey(key_addr);
+		} else {
+		  // Cancel "pending" state of keys held longer than the hold timeout.
+		  if (hold_expired)
+			temp_addrs_.clear(key_addr);
+		}
+	}
+	any_sticky_keys = (glue_addrs_.size > 0);
   }
 
   // Keep the start time from getting stale; if there are no keys waiting for a
   // timeout, it's safe to advance the timer to the current time.
-  if (!any_temp_keys) {
-    start_time_ = Runtime.millisAtCycleStart();
+  if (!any_temp_keys && !any_sticky_keys) {
+     start_time_ = Runtime.millisAtCycleStart();
   }
 
   return EventHandlerResult::OK;

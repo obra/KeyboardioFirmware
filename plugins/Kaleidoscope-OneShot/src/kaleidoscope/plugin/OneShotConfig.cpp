@@ -54,6 +54,7 @@ EventHandlerResult OneShotConfig::onFocusEvent(const char *input) {
     TIMEOUT,
     HOLD_TIMEOUT,
     DOUBLE_TAP_TIMEOUT,
+	STICKY_TIMEOUT,
     STICKABLE_KEYS,
     AUTO_MODS,
     AUTO_LAYERS,
@@ -61,6 +62,7 @@ EventHandlerResult OneShotConfig::onFocusEvent(const char *input) {
   const char *cmd_timeout            = PSTR("oneshot.timeout");
   const char *cmd_hold_timeout       = PSTR("oneshot.hold_timeout");
   const char *cmd_double_tap_timeout = PSTR("oneshot.double_tap_timeout");
+  const char *cmd_sticky_temeout     = PSTR("oneshot.sticky_timeout");
   const char *cmd_stickable_keys     = PSTR("oneshot.stickable_keys");
   const char *cmd_auto_mods          = PSTR("oneshot.auto_mods");
   const char *cmd_auto_layers        = PSTR("oneshot.auto_layers");
@@ -80,6 +82,8 @@ EventHandlerResult OneShotConfig::onFocusEvent(const char *input) {
     cmd = Command::HOLD_TIMEOUT;
   else if (::Focus.inputMatchesCommand(input, cmd_double_tap_timeout))
     cmd = Command::DOUBLE_TAP_TIMEOUT;
+  else if (::Focus.inputMatchesCommand(input, cmd_sticky_timeout))
+	cmd = Command::STICKY_TIMEOUT;
   else if (::Focus.inputMatchesCommand(input, cmd_stickable_keys))
     cmd = Command::STICKABLE_KEYS;
   else if (::Focus.inputMatchesCommand(input, cmd_auto_mods))
@@ -101,6 +105,9 @@ EventHandlerResult OneShotConfig::onFocusEvent(const char *input) {
     case Command::DOUBLE_TAP_TIMEOUT:
       ::Focus.send(::OneShot.getDoubleTapTimeout());
       break;
+	case Command::STICKY_TIMEOUT:
+	  ::Focus.send(::OneShot.getStickyTimeout());
+	  break;
     case Command::STICKABLE_KEYS:
       ::Focus.send(::OneShot.settings_.stickable_keys);
       break;
@@ -132,6 +139,10 @@ EventHandlerResult OneShotConfig::onFocusEvent(const char *input) {
       ::Focus.read(v);
       ::OneShot.setDoubleTapTimeout(static_cast<int16_t>(v));
       break;
+	case Command::STICKY_TIMEOUT:
+	  ::Focus.read(v);
+	  ::OneShot.setStickyTimeout(static_cast<uint32_t>(v));
+	  break;
     case Command::STICKABLE_KEYS:
       ::Focus.read(v);
       ::OneShot.settings_.stickable_keys = v;

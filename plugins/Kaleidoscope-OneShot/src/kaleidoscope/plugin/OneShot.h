@@ -191,10 +191,22 @@ class OneShot : public kaleidoscope::Plugin {
   void setDoubleTapTimeout(int16_t ttl) {
     settings_.double_tap_timeout = ttl;
   }
+  
   int16_t getDoubleTapTimeout() {
     return settings_.double_tap_timeout;
   }
 
+  void setStickyTimeout(uint32_t ttl) {
+	settings_.sticky_time_out_ = ttl;
+  }
+
+  void setStickyTimeOutSeconds(uint32_t ttl) {
+	settings.sticky_time_out_ = ttl * 1000;
+  }
+
+  uint32_t getStickyTimeOut() {
+    return settings_.sticky_time_out_;
+  }
   // --------------------------------------------------------------------------
   // Plugin hook functions
 
@@ -221,6 +233,7 @@ class OneShot : public kaleidoscope::Plugin {
     uint16_t timeout           = 2500;
     uint16_t hold_timeout      = 250;
     int16_t double_tap_timeout = -1;
+    uint32_t sticky_time_out_   = -1;
 
     uint16_t stickable_keys = -1;
     bool auto_modifiers     = false;
@@ -233,7 +246,7 @@ class OneShot : public kaleidoscope::Plugin {
   KeyAddrBitfield temp_addrs_;
   KeyAddrBitfield glue_addrs_;
 
-  uint16_t start_time_   = 0;
+  uint32_t start_time_   = 0;
   KeyAddr prev_key_addr_ = invalid_key_addr;
 
   // --------------------------------------------------------------------------
@@ -241,12 +254,19 @@ class OneShot : public kaleidoscope::Plugin {
   bool hasTimedOut(uint16_t ttl) const {
     return Runtime.hasTimeExpired(start_time_, ttl);
   }
+  bool hasTimedOut32(uint32_t ttl) const {
+	return Runtime.hasTimeExpired(start_time_, ttl);
+  }
   bool hasDoubleTapTimedOut() const {
     // Derive the true double-tap timeout value if we're using the default.
     uint16_t dtto = (settings_.double_tap_timeout < 0)
                       ? settings_.timeout
                       : settings_.double_tap_timeout;
     return hasTimedOut(dtto);
+  }
+  bool hasStickyTimedOut() const {
+	// uint32_t dtto = (sticky_time_out_ < 0) ? timeout_ : sticky_time_out_;
+	return hasTimedOut32(sticky_time_out_);
   }
   uint8_t getOneShotKeyIndex(Key oneshot_key) const;
   uint8_t getKeyIndex(Key key) const;
